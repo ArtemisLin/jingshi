@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
@@ -431,6 +431,31 @@ function show(name) {
   window.scrollTo(0, 0);
 }
 
+// 记录页压一条浏览历史：微信 / Safari 的「返回」也能回到首页，而不是离开 app
+function openRecords() {
+  hideResult();
+  renderRecords();
+  show('records');
+  if (!(history.state && history.state.v === 'records')) history.pushState({ v: 'records' }, '');
+}
+
+function backHome() {
+  if (history.state && history.state.v === 'records') history.back(); // 交给 popstate 回首页
+  else { renderHome(); show('home'); }
+}
+
+function onPopState() {
+  if (history.state && history.state.v === 'records') {
+    renderRecords();
+    show('records');
+    return;
+  }
+  closeSheet('picker');
+  closeSheet('backup');
+  renderHome();
+  show('home');
+}
+
 function openSheet(id) { $(id).hidden = false; }
 function closeSheet(id) { $(id).hidden = true; }
 
@@ -459,8 +484,9 @@ function bind() {
   // 缓冲期过后，碰一下屏幕也算出定
   $('sit').addEventListener('pointerdown', () => { if (sit && sit.phase === 'armed') endSit('touch'); });
 
-  $('toRecords').addEventListener('click', () => { hideResult(); renderRecords(); show('records'); });
-  $('back').addEventListener('click', () => { renderHome(); show('home'); });
+  $('toRecords').addEventListener('click', openRecords);
+  $('back').addEventListener('click', backHome);
+  addEventListener('popstate', onPopState);
   $('list').addEventListener('click', onDelete);
   document.addEventListener('touchstart', onTouchStart, { passive: true });
   $('list').addEventListener('touchmove', onTouchMove, { passive: false });
@@ -494,6 +520,7 @@ function bind() {
 }
 
 async function init() {
+  if (history.state && history.state.v === 'records') history.replaceState(null, ''); // 刷新后从首页开始
   bind();
   store.persist();
   try {
