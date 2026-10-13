@@ -22,8 +22,11 @@
 
 <main id="home" class="screen">
   <header class="bar">
-    <span class="brand">静时</span>
-    <button id="toRecords" class="link" type="button">记录</button>
+    <img class="logo" src="icons/logo.svg" alt="静时">
+    <button id="toRecords" class="tab" type="button">
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.5h10M2 7h10M2 10.5h6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"></path></svg>
+      <span>记录</span>
+    </button>
   </header>
   <div class="ring">
     <svg width="264" height="264" viewBox="0 0 264 264" aria-hidden="true">
@@ -36,18 +39,28 @@
         <span class="num" id="totM">00</span><span class="unit">分</span>
       </div>
     </div>
+    <button id="result" class="result" type="button" hidden>
+      <span class="result-k" id="resultK">本次静心</span>
+      <span class="result-v num" id="resultV"></span>
+      <span class="result-s" id="resultS"></span>
+    </button>
   </div>
   <div class="cta"><button id="start" class="pill" type="button">开始静心</button></div>
   <footer class="today" id="today"></footer>
 </main>
 
 <section id="sit" class="sit" hidden aria-live="polite">
-  <div class="count" id="count">5</div>
-  <div class="sit-title" id="sitTitle">进入静心</div>
+  <button class="count" id="count" type="button" aria-label="取消这次静心">
+    <span class="count-n" id="countN">5</span>
+    <span class="count-tip">再点一下取消</span>
+  </button>
+  <div class="core">
+    <div class="breath" aria-hidden="true"></div>
+    <div class="sit-title" id="sitTitle">进入静心</div>
+  </div>
   <div class="sit-foot">
     <div class="sit-hint" id="sitHint">5 秒后进入静心状态
 请不要离开此页面</div>
-    <button id="cancel" class="quiet" type="button">取消</button>
   </div>
 </section>
 

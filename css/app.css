@@ -77,7 +77,14 @@ button {
 /* ---------- 首页 ---------- */
 
 .bar { display: flex; justify-content: space-between; align-items: center; height: 44px; }
-.brand { font-size: 15px; letter-spacing: 0.5em; color: var(--muted); }
+.logo { height: 34px; width: auto; display: block; }
+.tab {
+  height: 36px; padding: 0 16px 0 13px; border-radius: 18px;
+  background: var(--cell); border: 1px solid var(--line);
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; letter-spacing: 0.2em; color: var(--ink);
+}
+.tab:active { filter: brightness(0.96); }
 
 .ring { margin: 56px auto 0; width: 264px; height: 264px; position: relative; flex: none; }
 .ring svg { position: absolute; left: 0; top: 0; }
@@ -91,6 +98,23 @@ button {
 .total #totM { margin-left: 6px; }
 .total.long .num { font-size: 50px; }
 .unit { font-size: 15px; color: var(--muted); }
+
+/* 出定后盖在累计上的结果卡 */
+.result {
+  position: absolute; left: 50%; top: 50%; z-index: 2;
+  width: 236px; box-sizing: border-box; padding: 22px 16px 20px; border-radius: 22px;
+  transform: translate(-50%, -50%) scale(0.96); opacity: 0;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  background: var(--ink); color: var(--bg);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  box-shadow: 0 10px 30px rgba(31, 29, 26, 0.18);
+}
+.result.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.result.bad { background: var(--red); color: #fff; }
+.result-k { font-size: 13px; letter-spacing: 0.3em; padding-left: 0.3em; opacity: 0.85; }
+.result-v { font-size: 46px; font-weight: 300; line-height: 1.1; color: #E8CF9C; }
+.result.bad .result-v { color: #fff; }
+.result-s { font-size: 13px; letter-spacing: 0.15em; opacity: 0.9; }
 
 .cta { flex: 1; min-height: 120px; display: flex; align-items: center; justify-content: center; }
 .pill {
@@ -124,10 +148,29 @@ button {
 .sit.armed .sit-title, .sit.armed .sit-hint { color: var(--dim-ink); }
 
 .count {
-  width: 120px; height: 120px; box-sizing: border-box; border-radius: 50%;
+  width: 140px; height: 140px; box-sizing: border-box; border-radius: 50%;
   border: 1px solid #D9D3C6;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Jost', sans-serif; font-size: 40px; font-weight: 300; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  color: var(--muted);
+}
+.count-n { font-family: 'Jost', sans-serif; font-size: 40px; font-weight: 300; line-height: 1; }
+.count-tip { font-size: 11px; letter-spacing: 0.15em; padding-left: 0.15em; }
+
+/* 静心中：金色圆框随呼吸缓缓放大缩小（10 秒一呼一吸） */
+.core { position: relative; display: flex; align-items: center; justify-content: center; }
+.breath { display: none; }
+.sit.armed .core { width: 220px; height: 220px; }
+.sit.armed .breath {
+  display: block; position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  animation: breathe 10s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(0.84); opacity: 0.55; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sit.armed .breath { animation-duration: 16s; }
 }
 .sit-title { font-size: 15px; letter-spacing: 0.5em; padding-left: 0.5em; color: var(--muted); }
 .sit-foot {
@@ -135,7 +178,6 @@ button {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
 .sit-hint { font-size: 12px; letter-spacing: 0.15em; color: var(--muted); text-align: center; padding: 0 28px; line-height: 1.9; white-space: pre-line; }
-.quiet { min-height: 44px; padding: 0 24px; font-size: 13px; letter-spacing: 0.3em; padding-left: calc(24px + 0.3em); color: var(--muted); }
 
 /* ---------- 静心记录 ---------- */
 

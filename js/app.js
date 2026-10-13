@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.2.1';
+const VERSION = '0.3.0';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
@@ -59,8 +59,27 @@ async function finish(r) {
   }
   renderHome();
   if (!$('records').hidden) renderRecords();
+  showResult(r);
+}
+
+// 出定结果：盖在首页累计上，几秒后自己消失，点一下也能关
+let resultTimer = null;
+function showResult(r) {
   const ok = L.isValid(r);
-  toast(ok ? `本次静心 ${L.fmtDur(r.e - r.s)}` : `本次 ${L.fmtDur(r.e - r.s)}，不足五分半，不计`, ok ? '' : 'bad', 6000);
+  const el = $('result');
+  $('resultK').textContent = ok ? '本次静心' : '本次';
+  $('resultV').textContent = L.fmtDur(r.e - r.s);
+  $('resultS').textContent = ok ? '已计入累计' : '不足五分半，不计';
+  el.classList.toggle('bad', !ok);
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add('show'));
+  clearTimeout(resultTimer);
+  resultTimer = setTimeout(hideResult, 8000);
+}
+function hideResult() {
+  const el = $('result');
+  el.classList.remove('show');
+  setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, 400);
 }
 
 // ---------- 静心 ----------
@@ -76,17 +95,16 @@ function startSit() {
   sit.watch = sense.watchPickup(() => endSit('pickup'));
 
   const n = Math.ceil(GRACE / 1000);
-  $('count').textContent = n;
+  $('countN').textContent = n;
   $('sitTitle').textContent = '进入静心';
   $('sitHint').textContent = `${n} 秒后进入静心状态\n请不要离开此页面`;
-  $('cancel').hidden = false;
   $('sit').classList.remove('armed');
   $('sit').hidden = false;
 
   motionAsk.then((m) => {
     if (!sit || sit.start !== start) return;
     sit.motion = m;
-    if (m !== 'ok') $('sitHint').textContent = '没有开启动作感应\n请不要离开此页面，锁屏后解锁即停止计时';
+    if (m !== 'ok') $('sitHint').textContent = '没有开启动作感应\n请不要离开此页面，解锁即停止计时';
   });
 
   sit.timer = setInterval(tickGrace, 200);
@@ -96,15 +114,14 @@ function tickGrace() {
   if (!sit) return;
   const left = Math.ceil((sit.start + GRACE - Date.now()) / 1000);
   if (left > 0) {
-    $('count').textContent = left;
+    $('countN').textContent = left;
     return;
   }
   clearInterval(sit.timer);
   sit.phase = 'armed';
   sit.watch.arm();
   $('sitTitle').textContent = '静心中';
-  if (sit.motion === 'ok') $('sitHint').textContent = '请不要离开此页面\n可以锁屏，拿起手机或解锁即停止计时';
-  $('cancel').hidden = true;
+  if (sit.motion === 'ok') $('sitHint').textContent = '请不要离开此页面\n拿起手机或解锁即停止计时';
   $('sit').classList.add('armed');
   setThemeColor(DIM);
 }
@@ -437,11 +454,12 @@ function toast(msg, kind = '', ms = 5000) {
 
 function bind() {
   $('start').addEventListener('click', startSit);
-  $('cancel').addEventListener('click', () => endSit('cancel'));
+  $('count').addEventListener('click', () => { if (sit && sit.phase === 'grace') endSit('cancel'); });
+  $('result').addEventListener('click', hideResult);
   // 缓冲期过后，碰一下屏幕也算出定
   $('sit').addEventListener('pointerdown', () => { if (sit && sit.phase === 'armed') endSit('touch'); });
 
-  $('toRecords').addEventListener('click', () => { renderRecords(); show('records'); });
+  $('toRecords').addEventListener('click', () => { hideResult(); renderRecords(); show('records'); });
   $('back').addEventListener('click', () => { renderHome(); show('home'); });
   $('list').addEventListener('click', onDelete);
   document.addEventListener('touchstart', onTouchStart, { passive: true });
