@@ -5,9 +5,10 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
+const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
 
 const $ = (id) => document.getElementById(id);
 
@@ -17,7 +18,7 @@ let pickYear = null;  // 选年月面板里选中的年份
 let sit = null;       // 正在静心：{ start, phase: 'grace'|'armed', timer, watch, motion }
 let pending = null;   // 页面在后台时攒下的提示，回来再显示
 let lastEnd = 0;      // 出定时那一下轻触，别让它落到底下的「开始静心」上又开一次
-let picked = null;    // 记录页里点中的那一条
+let drag = null;      // 正在左滑的那一行
 
 // ---------- 数据 ----------
 
@@ -77,7 +78,7 @@ function startSit() {
   const n = Math.ceil(GRACE / 1000);
   $('count').textContent = n;
   $('sitTitle').textContent = '进入静心';
-  $('sitHint').textContent = `${n} 秒内放好手机。之后可以锁屏，拿起手机或解锁即停止计时`;
+  $('sitHint').textContent = `${n} 秒后进入静心状态\n请不要离开此页面`;
   $('cancel').hidden = false;
   $('sit').classList.remove('armed');
   $('sit').hidden = false;
@@ -85,7 +86,7 @@ function startSit() {
   motionAsk.then((m) => {
     if (!sit || sit.start !== start) return;
     sit.motion = m;
-    if (m !== 'ok') $('sitHint').textContent = '没有开启动作感应：请锁屏，解锁即停止计时';
+    if (m !== 'ok') $('sitHint').textContent = '没有开启动作感应\n请不要离开此页面，锁屏后解锁即停止计时';
   });
 
   sit.timer = setInterval(tickGrace, 200);
@@ -101,11 +102,11 @@ function tickGrace() {
   clearInterval(sit.timer);
   sit.phase = 'armed';
   sit.watch.arm();
-  $('count').textContent = L.fmtClock(sit.start);
   $('sitTitle').textContent = '静心中';
-  if (sit.motion === 'ok') $('sitHint').textContent = '可以锁屏；拿起手机或解锁即停止计时';
+  if (sit.motion === 'ok') $('sitHint').textContent = '请不要离开此页面\n可以锁屏，拿起手机或解锁即停止计时';
   $('cancel').hidden = true;
   $('sit').classList.add('armed');
+  setThemeColor(DIM);
 }
 
 async function endSit(reason) {
@@ -117,12 +118,18 @@ async function endSit(reason) {
   clearInterval(timer);
   watch.stop();
   $('sit').hidden = true;
+  setThemeColor(BG);
   if (reason === 'cancel') {
     active.clear();
     return;
   }
   active.set({ s: start, end: at }); // 先同步记下结束时间，再慢慢存
   await finish({ s: start, e: at });
+}
+
+function setThemeColor(c) {
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = c;
 }
 
 // ---------- 首页 ----------
@@ -192,30 +199,64 @@ function dayHTML(day) {
 }
 
 function rowHTML(r) {
-  return `<button class="row${r.ok ? '' : ' bad'}" type="button" data-s="${r.s}">
-    <span class="num">${L.fmtClock(r.s)} – ${L.fmtClock(r.e)}</span>
-    <span class="row-dur">${r.ok ? '' : '<span class="tag">不计</span>'}<span class="num">${L.fmtDur(r.e - r.s)}</span></span>
-  </button>`;
+  return `<div class="swipe" data-s="${r.s}">
+    <button class="del" type="button" aria-label="删除 ${L.fmtClock(r.s)} 开始的这条记录">删除</button>
+    <div class="row${r.ok ? '' : ' bad'}">
+      <span class="num">${L.fmtClock(r.s)} – ${L.fmtClock(r.e)}</span>
+      <span class="row-dur">${r.ok ? '' : '<span class="tag">不计</span>'}<span class="num">${L.fmtDur(r.e - r.s)}</span></span>
+    </div>
+  </div>`;
 }
 
-function onRowTap(e) {
-  const b = e.target.closest('.row');
+// ---------- 左滑删除 ----------
+// 向左滑一行露出「删除」，点它就删；碰别处或再点这一行就收回去。
+
+const DEL_W = 76;
+
+function closeSwipes(except) {
+  for (const el of document.querySelectorAll('.swipe.open')) if (el !== except) el.classList.remove('open');
+}
+
+function onTouchStart(e) {
+  const sw = e.target.closest('.swipe');
+  closeSwipes(sw);
+  if (!sw || e.target.closest('.del')) { drag = null; return; }
+  const t = e.touches[0];
+  drag = { sw, row: sw.querySelector('.row'), x0: t.clientX, y0: t.clientY, base: sw.classList.contains('open') ? -DEL_W : 0, dx: 0, mode: null };
+}
+
+function onTouchMove(e) {
+  if (!drag) return;
+  const t = e.touches[0];
+  const dx = t.clientX - drag.x0, dy = t.clientY - drag.y0;
+  if (!drag.mode) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    drag.mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; // 竖着滑是在翻记录，不管
+  }
+  if (drag.mode !== 'h') return;
+  e.preventDefault();
+  drag.dx = dx;
+  drag.row.style.transition = 'none';
+  drag.row.style.transform = `translateX(${Math.max(-DEL_W - 24, Math.min(0, drag.base + dx))}px)`;
+}
+
+function onTouchEnd() {
+  if (!drag) return;
+  const { sw, row, base, dx, mode } = drag;
+  drag = null;
+  if (mode !== 'h') {
+    if (!mode && base) sw.classList.remove('open'); // 轻点已打开的一行 = 收回
+    return;
+  }
+  row.style.transition = '';
+  row.style.transform = '';
+  sw.classList.toggle('open', base + dx < -DEL_W / 2);
+}
+
+async function onDelete(e) {
+  const b = e.target.closest('.del');
   if (!b) return;
-  const r = list.find((x) => x.s === Number(b.dataset.s));
-  if (!r) return;
-  picked = r;
-  const ok = L.isValid(r);
-  $('recDate').textContent = L.fmtDate(r.s);
-  $('recTime').textContent = `${L.fmtClock(r.s)} – ${L.fmtClock(r.e)}`;
-  $('recDur').textContent = ok ? L.fmtDur(r.e - r.s) : `${L.fmtDur(r.e - r.s)} · 不足五分半，不计`;
-  $('recDur').classList.toggle('bad', !ok);
-  openSheet('rowSheet');
-}
-
-async function onDelete() {
-  const r = picked;
-  picked = null;
-  closeSheet('rowSheet');
+  const r = list.find((x) => x.s === Number(b.closest('.swipe').dataset.s));
   if (!r) return;
   await save({ s: r.s, e: r.e, x: 1 });
   renderRecords();
@@ -402,8 +443,11 @@ function bind() {
 
   $('toRecords').addEventListener('click', () => { renderRecords(); show('records'); });
   $('back').addEventListener('click', () => { renderHome(); show('home'); });
-  $('list').addEventListener('click', onRowTap);
-  $('delRow').addEventListener('click', onDelete);
+  $('list').addEventListener('click', onDelete);
+  document.addEventListener('touchstart', onTouchStart, { passive: true });
+  $('list').addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', onTouchEnd);
+  document.addEventListener('touchcancel', onTouchEnd);
 
   $('yearBtn').addEventListener('click', () => { pickYear = viewYear; renderPicker(); openSheet('picker'); });
   $('pickYears').addEventListener('click', onPick);
