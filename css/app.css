@@ -114,18 +114,16 @@ button {
   position: fixed; inset: 0; z-index: 10;
   background: var(--bg);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
-  transition: background-color 1.5s ease;
 }
-.sit > * { transition: opacity 1s ease; }
-.sit.dark { background: #000; cursor: none; }
-.sit.dark > * { opacity: 0; pointer-events: none; }
 
 .count {
   width: 120px; height: 120px; box-sizing: border-box; border-radius: 50%;
   border: 1px solid #D9D3C6;
   display: flex; align-items: center; justify-content: center;
   font-family: 'Jost', sans-serif; font-size: 40px; font-weight: 300; color: var(--muted);
+  transition: border-color 0.6s ease;
 }
+.sit.armed .count { border-color: var(--gold); font-size: 22px; letter-spacing: 0.05em; color: var(--ink); }
 .sit-title { font-size: 15px; letter-spacing: 0.5em; padding-left: 0.5em; color: var(--muted); }
 .sit-foot {
   position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 24px);

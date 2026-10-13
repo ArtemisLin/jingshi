@@ -1,5 +1,5 @@
-// 静时 · 手机感应：屏幕常亮 + 拿起即出定。
-// 网页在后台收不到传感器，所以静心时页面一直开着（20 秒后转黑）。
+// 静时 · 手机感应：屏幕亮着时，拿起即出定。
+// 网页锁屏后收不到传感器；锁屏期间改由「解锁回到页面」判定出定（见 app.js）。
 
 // 必须在点「开始静心」的那一下里直接调用（iOS 要求由点击触发授权）
 export function askMotion() {
@@ -8,22 +8,6 @@ export function askMotion() {
     return DeviceMotionEvent.requestPermission().then((p) => (p === 'granted' ? 'ok' : 'denied'), () => 'denied');
   }
   return Promise.resolve('ok');
-}
-
-let lock = null;
-
-export async function keepAwake() {
-  try {
-    lock = await navigator.wakeLock.request('screen');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function releaseAwake() {
-  if (lock) lock.release().catch(() => {});
-  lock = null;
 }
 
 // 判断「拿起」：看手机朝向变了多少，不看抖动。

@@ -5,17 +5,16 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.1.2';
+const VERSION = '0.2.0';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
-const BG = '#F5F2EA';
 
 const $ = (id) => document.getElementById(id);
 
 let list = [];        // 全部记录（含已删除）
 let viewYear = null;  // 记录页正在看的年份
 let pickYear = null;  // 选年月面板里选中的年份
-let sit = null;       // 正在静心：{ start, phase: 'grace'|'dark', timer, watch, motion }
+let sit = null;       // 正在静心：{ start, phase: 'grace'|'armed', timer, watch, motion }
 let pending = null;   // 页面在后台时攒下的提示，回来再显示
 let lastEnd = 0;      // 出定时那一下轻触，别让它落到底下的「开始静心」上又开一次
 let picked = null;    // 记录页里点中的那一条
@@ -33,110 +32,97 @@ async function save(r) {
   sync.syncDirty().then(renderBackupStatus);
 }
 
-// 正在进行的静心记在 localStorage：万一页面被系统杀掉，下次打开还能补记
+// 正在进行的静心记在 localStorage：锁屏久了页面可能被系统回收，解锁重开时据此补记
 const active = {
   get() { try { return JSON.parse(localStorage.getItem(ACTIVE)); } catch { return null; } },
   set(v) { try { localStorage.setItem(ACTIVE, JSON.stringify(v)); } catch {} },
   clear() { try { localStorage.removeItem(ACTIVE); } catch {} },
 };
 
+// 打开时发现有一次没结束：锁屏期间页面被系统回收了，现在（解锁回来）就是出定
 async function recover() {
   const a = active.get();
   if (!a) return;
-  active.clear();
-  if (a.phase !== 'dark') return;
-  const end = a.end || a.beat;
-  if (!end || end <= a.s) return;
-  const r = { s: a.s, e: end };
-  await save(r);
-  toast(`上次静心中途断了，按 ${L.fmtClock(end)} 记为结束 · ${L.fmtDur(end - a.s)}${L.isValid(r) ? '' : '，不足五分半，不计'}`, L.isValid(r) ? '' : 'bad', 8000);
+  const end = a.end || Date.now();
+  if (end - a.s < 1000) { active.clear(); return; }
+  await finish({ s: a.s, e: end });
+}
+
+async function finish(r) {
+  try {
+    await save(r);
+    active.clear();
+  } catch {
+    toast('这次记录没存上，下次打开会再试', 'bad', 8000);
+    return;
+  }
+  renderHome();
+  if (!$('records').hidden) renderRecords();
+  const ok = L.isValid(r);
+  toast(ok ? `本次静心 ${L.fmtDur(r.e - r.s)}` : `本次 ${L.fmtDur(r.e - r.s)}，不足五分半，不计`, ok ? '' : 'bad', 6000);
 }
 
 // ---------- 静心 ----------
+// 缓冲期（10 秒）放好手机 → 之后：屏幕亮着时拿起手机即出定；锁屏后继续计时，解锁回来即出定。
+// 不再让屏幕常亮：手机照常自动锁屏，坐几个小时也不费电。
 
 function startSit() {
   if (sit || Date.now() - lastEnd < 1500) return;
-  // 这两个必须在点击的同一刻发起，iOS 才认是用户触发的
-  const motionAsk = sense.askMotion();
-  const awake = sense.keepAwake();
-
+  const motionAsk = sense.askMotion(); // 必须在点击的同一刻发起，iOS 才认是用户触发的
   const start = Date.now();
   sit = { start, phase: 'grace', motion: null };
-  active.set({ s: start, phase: 'grace' });
+  active.set({ s: start });
   sit.watch = sense.watchPickup(() => endSit('pickup'));
 
-  $('sitHint').textContent = `${Math.round(GRACE / 1000)}s 后屏幕转暗；拿起手机会停止计时`;
-  $('count').textContent = Math.ceil(GRACE / 1000);
-  $('sit').classList.remove('dark');
+  const n = Math.ceil(GRACE / 1000);
+  $('count').textContent = n;
+  $('sitTitle').textContent = '进入静心';
+  $('sitHint').textContent = `${n} 秒内放好手机。之后可以锁屏，拿起手机或解锁即停止计时`;
+  $('cancel').hidden = false;
+  $('sit').classList.remove('armed');
   $('sit').hidden = false;
 
   motionAsk.then((m) => {
     if (!sit || sit.start !== start) return;
     sit.motion = m;
-    if (m !== 'ok') $('sitHint').textContent = '没有开启动作感应：拿起手机不会自动停止，结束时请轻触屏幕';
-  });
-  awake.then((ok) => {
-    if (!ok && sit && sit.start === start) toast('屏幕可能会自动锁定，锁屏会结束计时。可在「设置 › 显示与亮度 › 自动锁定」改成「永不」', '', 8000);
+    if (m !== 'ok') $('sitHint').textContent = '没有开启动作感应：请锁屏，解锁即停止计时';
   });
 
   sit.timer = setInterval(tickGrace, 200);
 }
 
 function tickGrace() {
+  if (!sit) return;
   const left = Math.ceil((sit.start + GRACE - Date.now()) / 1000);
   if (left > 0) {
     $('count').textContent = left;
     return;
   }
   clearInterval(sit.timer);
-  sit.phase = 'dark';
+  sit.phase = 'armed';
   sit.watch.arm();
-  $('sit').classList.add('dark');
-  setThemeColor('#000000');
-  beat();
-  sit.timer = setInterval(beat, 5000);
-}
-
-function beat() {
-  if (sit) active.set({ s: sit.start, phase: 'dark', beat: Date.now() });
+  $('count').textContent = L.fmtClock(sit.start);
+  $('sitTitle').textContent = '静心中';
+  if (sit.motion === 'ok') $('sitHint').textContent = '可以锁屏；拿起手机或解锁即停止计时';
+  $('cancel').hidden = true;
+  $('sit').classList.add('armed');
 }
 
 async function endSit(reason) {
   if (!sit) return;
   const at = Date.now();
-  const { start, phase, timer, watch } = sit;
+  const { start, timer, watch } = sit;
   sit = null;
   lastEnd = at;
   clearInterval(timer);
   watch.stop();
-  sense.releaseAwake();
-  setThemeColor(BG);
   $('sit').hidden = true;
-  $('sit').classList.remove('dark');
-
-  if (phase === 'grace') {
+  if (reason === 'cancel') {
     active.clear();
-    if (reason === 'hidden') toast('锁屏或切到别的应用，已取消这次静心');
     return;
   }
-
-  // 先同步记下结束时间，再慢慢存；中途被杀也丢不了
-  active.set({ s: start, phase: 'dark', end: at });
-  const r = { s: start, e: at };
-  try {
-    await save(r);
-    active.clear();
-  } catch {
-    toast('这次记录没存上，下次打开会再试', 'bad', 8000);
-  }
-  renderHome();
-  if (!$('records').hidden) renderRecords();
-  toast(L.isValid(r) ? `本次静心 ${L.fmtDur(r.e - r.s)}` : `本次 ${L.fmtDur(r.e - r.s)}，不足五分半，不计`, L.isValid(r) ? '' : 'bad', 6000);
-}
-
-function setThemeColor(c) {
-  const m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.content = c;
+  active.set({ s: start, end: at }); // 先同步记下结束时间，再慢慢存
+  await finish({ s: start, e: at });
 }
 
 // ---------- 首页 ----------
@@ -411,8 +397,8 @@ function toast(msg, kind = '', ms = 5000) {
 function bind() {
   $('start').addEventListener('click', startSit);
   $('cancel').addEventListener('click', () => endSit('cancel'));
-  // 转暗之后，碰一下屏幕也算出定
-  $('sit').addEventListener('pointerdown', () => { if (sit && sit.phase === 'dark') endSit('touch'); });
+  // 缓冲期过后，碰一下屏幕也算出定
+  $('sit').addEventListener('pointerdown', () => { if (sit && sit.phase === 'armed') endSit('touch'); });
 
   $('toRecords').addEventListener('click', () => { renderRecords(); show('records'); });
   $('back').addEventListener('click', () => { renderHome(); show('home'); });
@@ -432,17 +418,17 @@ function bind() {
     el.addEventListener('click', () => { el.closest('.sheet-wrap').hidden = true; });
   }
 
-  // 锁屏、切应用、关掉页面：静心中就当出定（转暗前则取消）
+  // 锁屏、切走：继续计时；解锁回来：出定
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      if (sit) endSit('hidden');
+    if (document.visibilityState === 'hidden') return;
+    if (sit) {
+      endSit('unlock');
       return;
     }
     renderAll(); // 可能跨了一天
     if (pending) { const p = pending; pending = null; toast(...p); }
     sync.syncDirty().then(renderBackupStatus);
   });
-  addEventListener('pagehide', () => { if (sit) endSit('hidden'); });
 }
 
 async function init() {
