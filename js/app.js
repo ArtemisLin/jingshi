@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.3.1';
+const VERSION = '0.3.2';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
