@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const BG = '#F5F2EA';
@@ -287,7 +287,7 @@ function renderBackupStatus() {
 
 function openBackup() {
   const cfg = sync.getConfig();
-  $('repo').value = cfg ? cfg.repo : 'artemislin/jingshi-data';
+  $('repo').value = cfg ? cfg.repo : '';
   $('token').value = cfg ? cfg.token : '';
   $('ver').textContent = `静时 v${VERSION}`;
   renderBackupStatus();
