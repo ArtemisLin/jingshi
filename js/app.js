@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.1.1';
+const VERSION = '0.1.2';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const BG = '#F5F2EA';
@@ -18,6 +18,7 @@ let pickYear = null;  // 选年月面板里选中的年份
 let sit = null;       // 正在静心：{ start, phase: 'grace'|'dark', timer, watch, motion }
 let pending = null;   // 页面在后台时攒下的提示，回来再显示
 let lastEnd = 0;      // 出定时那一下轻触，别让它落到底下的「开始静心」上又开一次
+let picked = null;    // 记录页里点中的那一条
 
 // ---------- 数据 ----------
 
@@ -64,7 +65,7 @@ function startSit() {
   active.set({ s: start, phase: 'grace' });
   sit.watch = sense.watchPickup(() => endSit('pickup'));
 
-  $('sitHint').textContent = '20s 后屏幕转暗；拿起手机会停止计时';
+  $('sitHint').textContent = `${Math.round(GRACE / 1000)}s 后屏幕转暗；拿起手机会停止计时`;
   $('count').textContent = Math.ceil(GRACE / 1000);
   $('sit').classList.remove('dark');
   $('sit').hidden = false;
@@ -171,6 +172,7 @@ function renderRecords() {
   const years = L.yearsWithData(list);
   if (!years.includes(viewYear)) viewYear = years[0] ?? new Date().getFullYear();
   $('yearBtn').hidden = !years.length;
+  $('rowHint').hidden = !years.length;
   $('yearLabel').textContent = viewYear;
 
   const months = L.yearView(list, viewYear);
@@ -210,15 +212,29 @@ function rowHTML(r) {
   </button>`;
 }
 
-async function onRowTap(e) {
+function onRowTap(e) {
   const b = e.target.closest('.row');
   if (!b) return;
   const r = list.find((x) => x.s === Number(b.dataset.s));
   if (!r) return;
-  if (!confirm(`删除这条记录？\n${L.fmtClock(r.s)} – ${L.fmtClock(r.e)}　${L.fmtDur(r.e - r.s)}`)) return;
+  picked = r;
+  const ok = L.isValid(r);
+  $('recDate').textContent = L.fmtDate(r.s);
+  $('recTime').textContent = `${L.fmtClock(r.s)} – ${L.fmtClock(r.e)}`;
+  $('recDur').textContent = ok ? L.fmtDur(r.e - r.s) : `${L.fmtDur(r.e - r.s)} · 不足五分半，不计`;
+  $('recDur').classList.toggle('bad', !ok);
+  openSheet('rowSheet');
+}
+
+async function onDelete() {
+  const r = picked;
+  picked = null;
+  closeSheet('rowSheet');
+  if (!r) return;
   await save({ s: r.s, e: r.e, x: 1 });
   renderRecords();
   renderHome();
+  toast(`已删除 ${L.fmtClock(r.s)} – ${L.fmtClock(r.e)} 这条记录`);
 }
 
 // ---------- 选年月 ----------
@@ -401,6 +417,7 @@ function bind() {
   $('toRecords').addEventListener('click', () => { renderRecords(); show('records'); });
   $('back').addEventListener('click', () => { renderHome(); show('home'); });
   $('list').addEventListener('click', onRowTap);
+  $('delRow').addEventListener('click', onDelete);
 
   $('yearBtn').addEventListener('click', () => { pickYear = viewYear; renderPicker(); openSheet('picker'); });
   $('pickYears').addEventListener('click', onPick);

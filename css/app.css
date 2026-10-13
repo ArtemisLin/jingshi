@@ -152,7 +152,8 @@ button {
 .stat-sub { font-size: 11px; letter-spacing: 0.1em; color: var(--gold-text); }
 .stat-sub .num { font-size: 12px; }
 
-.yearbar { margin-top: 8px; display: flex; }
+.yearbar { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; }
+.hint { font-size: 11px; letter-spacing: 0.15em; color: var(--faint); }
 .yearbtn { min-height: 44px; display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 300; }
 
 .month { scroll-margin-top: calc(env(safe-area-inset-top) + 8px); }
@@ -241,6 +242,18 @@ button {
   font-size: 13px; letter-spacing: 0.15em; cursor: pointer;
 }
 .ver { margin: 0; text-align: center; font-size: 11px; letter-spacing: 0.2em; color: var(--faint); }
+
+.rec { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 4px; }
+.rec-date { font-size: 13px; letter-spacing: 0.15em; color: var(--muted); }
+.rec-time { font-size: 30px; font-weight: 300; letter-spacing: 0.03em; }
+.rec-dur { font-size: 14px; letter-spacing: 0.05em; color: var(--gold-text); }
+.rec-dur.bad { color: var(--red); }
+.danger {
+  min-height: 50px; border-radius: 25px; background: var(--red); color: #fff;
+  font-size: 16px; font-weight: 400; letter-spacing: 0.2em; padding-left: 0.2em;
+}
+.danger:active { filter: brightness(0.92); }
+.ghost.full { flex: none; min-height: 50px; border-radius: 25px; font-size: 15px; }
 
 /* ---------- 提示 ---------- */
 

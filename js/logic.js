@@ -2,7 +2,7 @@
 // 一条记录 = { s: 开始毫秒, e: 结束毫秒, x?: 1 }；s 兼作 id，x=1 表示已删除（软删除，好让备份合并时删除能传过去）。
 
 export const MIN_VALID_MS = 330 * 1000; // 满 5′30″ 才计入总时
-export const GRACE_MS = 20 * 1000;      // 开始后 20 秒内动手机不算
+export const GRACE_MS = 10 * 1000;      // 开始后 10 秒内动手机不算（留给放手机）
 
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const pad = (n) => String(n).padStart(2, '0');
@@ -26,6 +26,12 @@ export function hm(ms) {
 export function fmtClock(ts) {
   const d = new Date(ts);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// 10月13日 周二
+export function fmtDate(ts) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${WEEK[d.getDay()]}`;
 }
 
 export function dayKey(ts) {
