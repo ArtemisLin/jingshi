@@ -28,7 +28,7 @@
       <span>记录</span>
     </button>
   </header>
-  <div class="ring">
+  <div class="ring" id="ring">
     <svg width="264" height="264" viewBox="0 0 264 264" aria-hidden="true">
       <circle cx="132" cy="132" r="128" fill="none" stroke="#B8924F" stroke-width="1.5"></circle>
     </svg>
@@ -39,11 +39,8 @@
         <span class="num" id="totM">00</span><span class="unit">分</span>
       </div>
     </div>
-    <button id="result" class="result" type="button" hidden>
-      <span class="result-k" id="resultK">本次静心</span>
-      <span class="result-v num" id="resultV"></span>
-      <span class="result-s" id="resultS"></span>
-    </button>
+    <div class="gain" id="gain" aria-live="polite">本次 <span class="num" id="gainV"></span></div>
+    <div class="miss" id="miss" aria-live="polite">本次 <span class="num" id="missV"></span><span class="seal">不<br>计</span></div>
   </div>
   <div class="cta"><button id="start" class="pill" type="button">开始静心</button></div>
   <footer class="today" id="today"></footer>

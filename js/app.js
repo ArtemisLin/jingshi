@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
@@ -50,6 +50,7 @@ async function recover() {
 }
 
 async function finish(r) {
+  const before = L.totals(list).ms;
   try {
     await save(r);
     active.clear();
@@ -59,31 +60,62 @@ async function finish(r) {
   }
   renderHome();
   if (!$('records').hidden) renderRecords();
-  showResult(r);
+  showResult(r, before);
 }
 
-// 出定结果：盖在首页累计上，几秒后自己消失，点一下也能关
-let resultTimer = null;
-function showResult(r) {
-  const ok = L.isValid(r);
-  const el = $('result');
-  $('resultK').textContent = ok ? '本次静心' : '本次';
-  $('resultV').textContent = L.fmtDur(r.e - r.s);
-  $('resultS').textContent = ok ? '已计入累计' : '不足五分半，不计';
-  el.classList.toggle('bad', !ok);
-  el.hidden = false;
-  requestAnimationFrame(() => el.classList.add('show'));
-  clearTimeout(resultTimer);
-  resultTimer = setTimeout(hideResult, 8000);
+// 出定结果就在圆环里：有效的让累计从旧值涨到新值，不计的盖一枚「不计」朱印。7 秒后淡出。
+let resultTimers = [];
+let countFrame = 0;
+
+function setTotal(ms) {
+  const t = L.hm(ms);
+  $('totH').textContent = t.h;
+  $('totM').textContent = t.m;
+  $('total').classList.toggle('long', t.h >= 100);
 }
+
+function countUp(from, to) {
+  const t0 = performance.now(), dur = 1800;
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur);
+    setTotal(from + (to - from) * (1 - Math.pow(1 - k, 3)));
+    if (k < 1) countFrame = requestAnimationFrame(step);
+  };
+  countFrame = requestAnimationFrame(step);
+}
+
+function showResult(r, before) {
+  hideResult();
+  const later = (ms, fn) => resultTimers.push(setTimeout(fn, ms));
+  const dur = L.fmtDur(r.e - r.s);
+  if (L.isValid(r)) {
+    const after = L.totals(list).ms;
+    $('gainV').textContent = `+${dur}`;
+    setTotal(before);
+    $('ring').classList.add('lit');
+    $('gain').classList.add('show');
+    later(500, () => countUp(before, after));
+    later(2600, () => $('ring').classList.remove('lit'));
+    later(7000, () => $('gain').classList.remove('show'));
+  } else {
+    $('missV').textContent = dur;
+    $('miss').classList.add('show');
+    later(7000, () => $('miss').classList.remove('show'));
+  }
+}
+
 function hideResult() {
-  const el = $('result');
-  el.classList.remove('show');
-  setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, 400);
+  resultTimers.forEach(clearTimeout);
+  resultTimers = [];
+  cancelAnimationFrame(countFrame);
+  $('gain').classList.remove('show');
+  $('miss').classList.remove('show');
+  $('ring').classList.remove('lit');
+  setTotal(L.totals(list).ms);
 }
 
 // ---------- 静心 ----------
-// 缓冲期（10 秒）放好手机 → 之后：屏幕亮着时拿起手机即出定；锁屏后继续计时，解锁回来即出定。
+// 缓冲期（5 秒）放好手机 → 之后：屏幕亮着时拿起手机即出定；锁屏后继续计时，解锁回来即出定。
 // 不再让屏幕常亮：手机照常自动锁屏，坐几个小时也不费电。
 
 function startSit() {
@@ -480,7 +512,6 @@ function toast(msg, kind = '', ms = 5000) {
 function bind() {
   $('start').addEventListener('click', startSit);
   $('count').addEventListener('click', () => { if (sit && sit.phase === 'grace') endSit('cancel'); });
-  $('result').addEventListener('click', hideResult);
   // 缓冲期过后，碰一下屏幕也算出定
   $('sit').addEventListener('pointerdown', () => { if (sit && sit.phase === 'armed') endSit('touch'); });
 

@@ -100,22 +100,35 @@ button {
 .total.long .num { font-size: 50px; }
 .unit { font-size: 15px; color: var(--muted); }
 
-/* 出定后盖在累计上的结果卡 */
-.result {
-  position: absolute; left: 50%; top: 50%; z-index: 2;
-  width: 236px; box-sizing: border-box; padding: 22px 16px 20px; border-radius: 22px;
-  transform: translate(-50%, -50%) scale(0.96); opacity: 0;
-  transition: opacity 0.35s ease, transform 0.35s ease;
-  background: var(--ink); color: var(--bg);
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  box-shadow: 0 10px 30px rgba(31, 29, 26, 0.18);
+/* 出定结果就在圆环里：有效 → 圆环一亮、上方浮出「本次 +时长」、累计往上涨；不计 → 下方「本次 时长」+ 朱印「不计」 */
+.ring svg circle { transition: stroke 0.8s ease, stroke-width 0.8s ease; }
+.ring.lit svg circle { stroke: #C9A15A; stroke-width: 2.2; }
+.gain {
+  position: absolute; left: 0; right: 0; top: 42px; text-align: center;
+  font-size: 15px; letter-spacing: 0.12em; color: var(--gold-text);
+  opacity: 0; transform: translateY(6px); transition: opacity 0.6s ease, transform 0.6s ease; pointer-events: none;
 }
-.result.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-.result.bad { background: var(--red); color: #fff; }
-.result-k { font-size: 13px; letter-spacing: 0.3em; padding-left: 0.3em; opacity: 0.85; }
-.result-v { font-size: 46px; font-weight: 300; line-height: 1.1; color: #E8CF9C; }
-.result.bad .result-v { color: #fff; }
-.result-s { font-size: 13px; letter-spacing: 0.15em; opacity: 0.9; }
+.gain .num { font-size: 21px; letter-spacing: 0.03em; }
+.gain.show { opacity: 1; transform: translateY(0); }
+.miss {
+  position: absolute; left: 0; right: 0; bottom: 34px;
+  display: flex; justify-content: center; align-items: center; gap: 10px;
+  font-size: 15px; letter-spacing: 0.1em; color: var(--muted);
+  opacity: 0; transition: opacity 0.6s ease; pointer-events: none;
+}
+.miss .num { font-size: 21px; letter-spacing: 0.03em; color: var(--ink); }
+.miss.show { opacity: 1; }
+.seal {
+  display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; box-sizing: border-box;
+  border-radius: 3px; background: var(--red); color: #F8EFE6;
+  font-size: 13px; line-height: 1.05; letter-spacing: 0; text-align: center;
+  transform: rotate(-4deg);
+}
+.miss.show .seal { animation: stamp 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.2) both; }
+@keyframes stamp {
+  0% { transform: rotate(-4deg) scale(1.8); opacity: 0; }
+  100% { transform: rotate(-4deg) scale(1); opacity: 1; }
+}
 
 .cta { flex: 1; min-height: 120px; display: flex; align-items: center; justify-content: center; }
 .pill {

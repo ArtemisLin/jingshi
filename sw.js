@@ -1,5 +1,5 @@
 // 静时 · 离线缓存。发新版时改 CACHE 的版本号。
-const CACHE = 'jingshi-0.4.0';
+const CACHE = 'jingshi-0.5.0';
 const FILES = [
   './',
   './index.html',
