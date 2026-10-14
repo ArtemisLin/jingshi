@@ -1,8 +1,9 @@
 // 静时 · 离线缓存。发新版时改 CACHE 的版本号。
-const CACHE = 'jingshi-0.3.2';
+const CACHE = 'jingshi-0.3.3';
 const FILES = [
   './',
   './index.html',
+  './guide.html',
   './css/app.css',
   './js/app.js',
   './js/logic.js',
