@@ -157,21 +157,33 @@ button {
 .count-n { font-family: 'Jost', sans-serif; font-size: 40px; font-weight: 300; line-height: 1; }
 .count-tip { font-size: 11px; letter-spacing: 0.15em; padding-left: 0.15em; }
 
-/* 静心中：金色圆框随呼吸缓缓放大缩小（10 秒一呼一吸） */
+/* 静心中：金色柔光随呼吸涨落（8 秒一呼一吸），里层光核 + 外层光晕，外层慢半拍；中间草书「静心中」 */
 .core { position: relative; display: flex; align-items: center; justify-content: center; }
-.breath { display: none; }
-.sit.armed .core { width: 220px; height: 220px; }
-.sit.armed .breath {
-  display: block; position: absolute; inset: 0; border-radius: 50%;
-  border: 1.5px solid var(--gold);
-  animation: breathe 10s ease-in-out infinite;
+.halo, .core-glow, .phrase { display: none; }
+.sit.armed .core { width: 260px; height: 260px; }
+.sit.armed .sit-title { display: none; }
+.sit.armed .phrase { display: block; position: relative; height: 40px; width: auto; opacity: 0.72; }
+.sit.armed .core-glow {
+  display: block; position: absolute; left: 30px; top: 30px; width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(184, 140, 66, 0.90) 0%, rgba(184, 140, 66, 0.62) 40%, rgba(184, 140, 66, 0.20) 62%, rgba(184, 140, 66, 0) 72%);
+  animation: core-breath 8s ease-in-out infinite;
 }
-@keyframes breathe {
-  0%, 100% { transform: scale(0.84); opacity: 0.55; }
-  50% { transform: scale(1.06); opacity: 1; }
+.sit.armed .halo {
+  display: block; position: absolute; left: -50px; top: -50px; width: 360px; height: 360px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(196, 156, 92, 0.42) 0%, rgba(196, 156, 92, 0.22) 40%, rgba(196, 156, 92, 0.06) 60%, rgba(196, 156, 92, 0) 70%);
+  animation: halo-breath 8s ease-in-out infinite;
+  animation-delay: -7.4s;
+}
+@keyframes core-breath {
+  0%, 100% { transform: scale(0.55); opacity: 0.5; }
+  50% { transform: scale(1); opacity: 1; }
+}
+@keyframes halo-breath {
+  0%, 100% { transform: scale(0.62); opacity: 0.2; }
+  50% { transform: scale(1.1); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sit.armed .breath { animation-duration: 16s; }
+  .sit.armed .core-glow, .sit.armed .halo { animation-duration: 14s; }
 }
 .sit-title { font-size: 15px; letter-spacing: 0.5em; padding-left: 0.5em; color: var(--muted); }
 .sit-foot {
