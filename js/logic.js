@@ -157,3 +157,28 @@ export function decode(text) {
     .filter((r) => r && Number.isFinite(r.s) && Number.isFinite(r.e) && r.e > r.s)
     .map((r) => (r.x ? { s: r.s, e: r.e, x: 1 } : { s: r.s, e: r.e }));
 }
+
+// ---------- 上次静心没正常结束，打开时怎么补记 ----------
+// a = { s: 开始, end?: 已记下的结束, h?: 离开页面（锁屏/切走/关掉）的时刻, beat?: 最后一次还在页面上的时刻 }
+// 离开到现在不超过两分钟：就是锁屏后刚解锁回来、页面被系统重载了，按现在记。
+// 超过两分钟：分不清是锁屏静坐了很久，还是早就关掉走了，要问本人。
+export const ASK_GAP_MS = 2 * 60 * 1000;
+
+export function recoverPlan(a, now) {
+  if (!a || !Number.isFinite(a.s)) return { kind: 'none' };
+  if (a.end) return { kind: 'end', end: a.end };
+  const left = Math.max(a.h || 0, a.beat || 0, a.s);
+  if (now - left <= ASK_GAP_MS) return { kind: 'end', end: now };
+  return { kind: 'ask', left, now };
+}
+
+// ---------- 备份要不要提醒 ----------
+// st = { ok, at, net?: 是不是没网, since?: 这一串失败从何时开始 }
+// 没设置备份不提醒；没网偶尔失败不提醒，连续一天都没网才提醒；其他失败（钥匙过期等）马上提醒。
+export const NET_GRACE_MS = 24 * 3600 * 1000;
+
+export function backupAlert(hasConfig, st, now) {
+  if (!hasConfig || !st || st.ok) return false;
+  if (st.net) return now - (st.since || st.at) > NET_GRACE_MS;
+  return true;
+}

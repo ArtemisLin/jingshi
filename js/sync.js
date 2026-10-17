@@ -13,7 +13,13 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 export const getConfig = () => read(CFG, null);
 export const setConfig = (cfg) => write(CFG, cfg);
 export const getStatus = () => read(STATUS, null);
-const setStatus = (ok, msg) => write(STATUS, { at: Date.now(), ok, msg });
+// 记下这次同步结果；连续失败时保留第一次失败的时间（since），用来判断「没网是不是已经太久」
+function setStatus(ok, msg, net = false) {
+  const now = Date.now(), prev = read(STATUS, null);
+  const since = ok ? null : prev && !prev.ok ? prev.since || prev.at : now;
+  write(STATUS, { at: now, ok, msg, net, since });
+}
+const recordFailure = (e) => setStatus(false, e.message, !!e.net);
 
 export function markDirty(year) {
   const d = new Set(read(DIRTY, []));
@@ -35,7 +41,9 @@ async function api(cfg, path, opts = {}) {
       },
     });
   } catch {
-    throw new Error('连不上 GitHub，稍后联网会自动补上');
+    const e = new Error('连不上 GitHub，联网后会自动补上');
+    e.net = true;
+    throw e;
   }
   return res;
 }
@@ -98,7 +106,7 @@ export function syncDirty() {
       }
       setStatus(true, '');
     } catch (e) {
-      setStatus(false, e.message);
+      recordFailure(e);
     }
   });
 }
@@ -121,7 +129,7 @@ export function syncAll() {
       write(DIRTY, []);
       setStatus(true, '');
     } catch (e) {
-      setStatus(false, e.message);
+      recordFailure(e);
       throw e;
     }
   });

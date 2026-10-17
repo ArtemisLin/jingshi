@@ -5,7 +5,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
@@ -40,13 +40,39 @@ const active = {
   clear() { try { localStorage.removeItem(ACTIVE); } catch {} },
 };
 
-// 打开时发现有一次没结束：锁屏期间页面被系统回收了，现在（解锁回来）就是出定
+// 打开时发现有一次没结束（锁屏久了页面被系统回收，或者中途关掉了页面）：
+// 刚离开不久就按现在记；离开很久了分不清是一直锁屏静坐还是早走了，问本人。
 async function recover() {
   const a = active.get();
-  if (!a) return;
-  const end = a.end || Date.now();
+  const plan = L.recoverPlan(a, Date.now());
+  if (plan.kind === 'none') { if (a) active.clear(); return; }
+  let end = plan.end;
+  if (plan.kind === 'ask') {
+    const choice = await askEnd(a.s, plan.left, plan.now);
+    if (choice === 'drop') { active.clear(); toast('好的，上次那次不记'); return; }
+    end = choice === 'left' ? plan.left : plan.now;
+  }
   if (end - a.s < 1000) { active.clear(); return; }
   await finish({ s: a.s, e: end });
+}
+
+// 跨天时带上日期：今天的只写钟点
+function clockOrDate(ts) {
+  return L.dayKey(ts) === L.dayKey(Date.now()) ? L.fmtClock(ts) : `${new Date(ts).getMonth() + 1}月${new Date(ts).getDate()}日 ${L.fmtClock(ts)}`;
+}
+
+function askEnd(s, left, now) {
+  const line = (end) => `${clockOrDate(end)} · 共 ${L.fmtDur(end - s)}${L.isValid({ s, e: end }) ? '' : '（不足五分半，不计）'}`;
+  $('askText').textContent = `${clockOrDate(s)} 开始静心，${clockOrDate(left)} 离开了页面。一直锁屏静坐到刚才，就选「记到现在」；中途就起身了，就选「记到离开时」。`;
+  $('askNow').innerHTML = `<span>记到现在</span><small>${line(now)}</small>`;
+  $('askLeft').innerHTML = `<span>记到离开时</span><small>${line(left)}</small>`;
+  openSheet('askSheet');
+  return new Promise((resolve) => {
+    const pick = (v) => () => { closeSheet('askSheet'); for (const id of ['askNow', 'askLeft', 'askDrop']) $(id).onclick = null; resolve(v); };
+    $('askNow').onclick = pick('now');
+    $('askLeft').onclick = pick('left');
+    $('askDrop').onclick = pick('drop');
+  });
 }
 
 async function finish(r) {
@@ -140,6 +166,18 @@ function startSit() {
   });
 
   sit.timer = setInterval(tickGrace, 200);
+  sit.beatTimer = setInterval(beat, 5000); // 还在页面上的证据：万一页面被关，补记时用得上
+}
+
+function beat() {
+  const a = active.get();
+  if (sit && a && a.s === sit.start) active.set({ ...a, beat: Date.now() });
+}
+
+// 离开页面（锁屏、切走、关掉）：记下时刻，计时照常继续
+function markLeft() {
+  const a = active.get();
+  if (sit && a && a.s === sit.start && !a.h) active.set({ ...a, h: Date.now() });
 }
 
 function tickGrace() {
@@ -161,10 +199,11 @@ function tickGrace() {
 async function endSit(reason) {
   if (!sit) return;
   const at = Date.now();
-  const { start, timer, watch } = sit;
+  const { start, timer, beatTimer, watch } = sit;
   sit = null;
   lastEnd = at;
   clearInterval(timer);
+  clearInterval(beatTimer);
   watch.stop();
   $('sit').hidden = true;
   setThemeColor(BG);
@@ -359,7 +398,18 @@ function when(ts) {
   return `${d.getMonth() + 1}月${d.getDate()}日 ${L.fmtClock(ts)}`;
 }
 
+// 备份出问题时，「记录」「备份」按钮上亮小红点，记录页顶上写明原因
+function updateAlert() {
+  const st = sync.getStatus();
+  const on = L.backupAlert(!!sync.getConfig(), st, Date.now());
+  $('recDot').hidden = !on;
+  $('bakDot').hidden = !on;
+  $('bakWarn').hidden = !on;
+  if (on) $('bakWarn').textContent = `备份没成功：${st.msg}。点这里处理 ›`;
+}
+
 function renderBackupStatus() {
+  updateAlert();
   const cfg = sync.getConfig();
   const st = sync.getStatus();
   const el = $('syncStatus');
@@ -393,6 +443,7 @@ async function onSaveSync() {
   if (!token) {
     sync.setConfig(null);
     renderBackupStatus();
+    updateAlert();
     toast('已关闭自动备份');
     return;
   }
@@ -529,6 +580,7 @@ function bind() {
   $('pickMonths').addEventListener('click', onPick);
 
   $('toBackup').addEventListener('click', openBackup);
+  $('bakWarn').addEventListener('click', openBackup);
   $('saveSync').addEventListener('click', onSaveSync);
   $('exportBtn').addEventListener('click', onExport);
   $('importFile').addEventListener('change', onImport);
@@ -537,9 +589,10 @@ function bind() {
     el.addEventListener('click', () => { el.closest('.sheet-wrap').hidden = true; });
   }
 
-  // 锁屏、切走：继续计时；解锁回来：出定
+  // 锁屏、切走：继续计时（记下离开的时刻）；解锁回来：出定
+  addEventListener('pagehide', markLeft);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') return;
+    if (document.visibilityState === 'hidden') { markLeft(); return; }
     if (sit) {
       endSit('unlock');
       return;
@@ -556,11 +609,14 @@ async function init() {
   store.persist();
   try {
     await reload();
-    await recover();
   } catch {
     toast('读不到本机记录，请确认没有开启无痕浏览', 'bad', 8000);
   }
   renderHome();
+  updateAlert();
+  try {
+    await recover(); // 补记那一次会自己播「累计往上涨」，所以放在首页画好之后
+  } catch {}
   sync.syncDirty().then(renderBackupStatus);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }

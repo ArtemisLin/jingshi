@@ -12,11 +12,15 @@ export function askMotion() {
 
 // 判断「拿起」：看手机朝向变了多少，不看抖动。
 // 重力方向做了低通滤波，消息震动这种高频小抖动过不去；拿起来几乎一定会倾斜。
-const TILT_DEG = 15;
+// 缓冲期结束后，要等手机先静止下来（约半秒朝向基本不变），才把那时的朝向当作「放好的样子」，
+// 免得 5 秒到时手还在调位置，放稳那一下就被当成拿起。
+const TILT_DEG = 15;   // 偏离放好的朝向超过这么多度 = 拿起
+const STILL_DEG = 3;   // 朝向变化在这以内算没动
+const STILL_N = 30;    // 连续这么多个读数（约半秒）没动 = 放稳了
 const ALPHA = 0.15;
 
 export function watchPickup(onPickup) {
-  let g = null, base = null, armed = false, fired = false;
+  let g = null, base = null, anchor = null, still = 0, armed = false, fired = false;
 
   function onMotion(e) {
     const a = e.accelerationIncludingGravity;
@@ -24,7 +28,15 @@ export function watchPickup(onPickup) {
     const v = [a.x, a.y, a.z];
     g = g ? g.map((x, i) => x + ALPHA * (v[i] - x)) : v;
     if (!armed || fired) return;
-    if (!base) { base = [...g]; return; }
+    if (!base) {
+      if (anchor && angle(g, anchor) <= STILL_DEG) {
+        if (++still >= STILL_N) base = [...anchor];
+      } else {
+        anchor = [...g];
+        still = 0;
+      }
+      return;
+    }
     if (angle(g, base) > TILT_DEG) {
       fired = true;
       onPickup();
@@ -33,9 +45,11 @@ export function watchPickup(onPickup) {
 
   addEventListener('devicemotion', onMotion);
   return {
-    // 20 秒缓冲结束时调用：以这一刻的朝向为准
-    arm() { armed = true; if (g) base = [...g]; },
-    // 有没有收到过传感器数据（没收到 = 这台设备/这次没授权，只能靠轻触屏幕结束）
+    // 缓冲期结束时调用：从这时起等手机放稳，再开始感应拿起
+    arm() { armed = true; },
+    // 是否已经放稳、开始感应
+    ready: () => !!base,
+    // 有没有收到过传感器数据（没收到 = 这台设备/这次没授权，只能靠轻触屏幕或解锁结束）
     alive: () => !!g,
     stop() { removeEventListener('devicemotion', onMotion); },
   };

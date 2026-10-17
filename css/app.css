@@ -85,7 +85,17 @@ button {
   display: flex; align-items: center; gap: 6px;
   font-size: 14px; letter-spacing: 0.2em; color: var(--ink);
 }
+.tab { position: relative; }
 .tab:active { filter: brightness(0.96); }
+.dot { position: absolute; top: 3px; right: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px var(--bg); }
+.warn {
+  margin-top: 12px; width: 100%; padding: 10px 14px; border-radius: 12px; text-align: left;
+  background: #F6E4DF; color: var(--red); font-size: 13px; line-height: 1.6; letter-spacing: 0.04em;
+}
+.choice { width: 100%; min-height: 54px; border-radius: 27px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 16px; box-sizing: border-box; font-size: 15px; letter-spacing: 0.08em; }
+.choice small { font-size: 12px; letter-spacing: 0.04em; opacity: 0.8; }
+.choice.ghostish { border: 1px solid var(--line); background: #fff; }
+.choice.plain { min-height: 44px; font-size: 14px; color: var(--muted); }
 
 .ring { margin: 56px auto 0; width: 264px; height: 264px; position: relative; flex: none; }
 .ring svg { position: absolute; left: 0; top: 0; }
