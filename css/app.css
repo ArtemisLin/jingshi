@@ -241,7 +241,7 @@ a.tab { color: var(--ink); text-decoration: none; }
   position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 24px);
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
-.sit-time { font-size: 13px; letter-spacing: 0.15em; color: var(--dim-ink); }
+.sit-time { position: relative; z-index: 1; margin-bottom: 18px; font-size: 13px; letter-spacing: 0.15em; color: var(--dim-ink); }
 .sit-time .num { font-size: 15px; letter-spacing: 0.03em; }
 .sit-hint { font-size: 12px; letter-spacing: 0.15em; color: var(--muted); text-align: center; padding: 0 28px; line-height: 1.9; white-space: pre-line; }
 
