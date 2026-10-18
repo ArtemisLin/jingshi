@@ -1,15 +1,16 @@
 // 静时 · 界面与静心流程
 
-import * as L from './logic.js?v=0.7.0';
-import * as store from './store.js?v=0.7.0';
-import * as sync from './sync.js?v=0.7.0';
-import * as sense from './sense.js?v=0.7.0';
-import * as stat from './stat.js?v=0.7.0';
+import * as L from './logic.js?v=0.7.1';
+import * as store from './store.js?v=0.7.1';
+import * as sync from './sync.js?v=0.7.1';
+import * as sense from './sense.js?v=0.7.1';
+import * as stat from './stat.js?v=0.7.1';
 
-const VERSION = '0.7.0';
+const VERSION = '0.7.1';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const ONBOARD = 'jingshi.onboarded';
+const SEEN = 'jingshi.seen', LAST = 'jingshi.lastActive'; // 只存日期，用来数「不同的人」
 const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
 
 const $ = (id) => document.getElementById(id);
@@ -541,6 +542,21 @@ function doneOnboard() {
   $('onboard').hidden = true;
 }
 
+// ---------- 数「不同的人」（只发生一次的匿名事件，见 logic.peopleEvents） ----------
+
+function countPeople() {
+  let state;
+  try { state = { seen: localStorage.getItem(SEEN), last: localStorage.getItem(LAST) }; } catch { return; } // 存不了就不数，免得每次都算新人
+  const old = list.length > 0 || !!sync.getConfig() || (() => { try { return !!localStorage.getItem(ONBOARD); } catch { return false; } })();
+  const r = L.peopleEvents(state, L.dayKey(Date.now()), old);
+  if (!r.events.length) return;
+  try {
+    localStorage.setItem(SEEN, r.seen);
+    localStorage.setItem(LAST, r.last);
+  } catch { return; }
+  for (const e of r.events) stat.event(e);
+}
+
 // ---------- 通用 ----------
 
 function show(name) {
@@ -635,6 +651,7 @@ function bind() {
       return;
     }
     renderAll(); // 可能跨了一天
+    countPeople(); // 从浮窗回来、跨了一天的，也算今日活跃
     if (pending) { const p = pending; pending = null; toast(...p); }
     sync.syncDirty().then(renderBackupStatus);
   });
@@ -652,6 +669,7 @@ async function init() {
   }
   renderHome();
   updateAlert();
+  countPeople();
   try {
     await recover(); // 补记那一次会自己播「累计往上涨」，所以放在首页画好之后
   } catch {}

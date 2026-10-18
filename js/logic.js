@@ -182,3 +182,15 @@ export function backupAlert(hasConfig, st, now) {
   if (st.net) return now - (st.since || st.at) > NET_GRACE_MS;
   return true;
 }
+
+// ---------- 数「不同的人」 ----------
+// 手机上只存两个标记：第一次来的日期、最近一次活跃的日期，不生成也不上传任何编号。
+// 第一次打开：发「新用户」；更新到这一版前就用过的（有记录/看过引导/设过备份），发「老用户」，不算新来的。
+// 每天第一次打开：发「今日活跃」。
+export function peopleEvents(state, today, hasHistory) {
+  const events = [];
+  let { seen, last } = state || {};
+  if (!seen) { events.push(hasHistory ? '老用户' : '新用户'); seen = today; }
+  if (last !== today) { events.push('今日活跃'); last = today; }
+  return { events, seen, last };
+}
