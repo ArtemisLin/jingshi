@@ -86,6 +86,28 @@ button {
   font-size: 14px; letter-spacing: 0.2em; color: var(--ink);
 }
 .tab { position: relative; }
+a.tab { color: var(--ink); text-decoration: none; }
+.bar-right { display: flex; align-items: center; gap: 8px; }
+
+/* 第一次在微信里打开：教用户把静时收进浮窗 */
+.onboard { position: fixed; inset: 0; z-index: 40; background: rgba(24, 21, 17, 0.8); }
+.ob-arrow { position: absolute; top: calc(env(safe-area-inset-top) + 2px); right: 20px; width: 110px; height: 130px; }
+.ob-card {
+  position: absolute; left: 24px; right: 24px; top: calc(env(safe-area-inset-top) + 150px);
+  max-width: 440px; margin: 0 auto; box-sizing: border-box;
+  background: var(--sheet); border-radius: 24px; padding: 26px 24px 18px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.ob-kicker { margin: 0; font-size: 13px; letter-spacing: 0.3em; color: var(--gold-text); }
+.ob-card h2 { margin: 0; font-size: 22px; font-weight: 400; letter-spacing: 0.12em; }
+.ob-steps { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.ob-steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.6; }
+.ob-steps .n {
+  flex: none; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; border: 1px solid var(--gold);
+  color: var(--gold-text); font-family: 'Jost', sans-serif; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ob-more { padding: 6px 0; text-align: center; font-size: 13px; letter-spacing: 0.05em; color: var(--gold-text); text-decoration: none; }
 .tab:active { filter: brightness(0.96); }
 .dot { position: absolute; top: 3px; right: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px var(--bg); }
 .warn {

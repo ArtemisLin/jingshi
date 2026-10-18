@@ -35,11 +35,17 @@
 <main id="home" class="screen">
   <header class="bar">
     <img class="logo" src="icons/logo.svg" alt="静时">
+    <div class="bar-right">
+    <a id="toGuide" class="tab" href="guide.html">
+      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5h6a3 3 0 0 1 3 3V20a2.5 2.5 0 0 0-2.5-2.5H3zM21 5.5h-6a3 3 0 0 0-3 3V20a2.5 2.5 0 0 1 2.5-2.5H21z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path></svg>
+      <span>指南</span>
+    </a>
     <button id="toRecords" class="tab" type="button">
       <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.5h10M2 7h10M2 10.5h6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"></path></svg>
       <span>记录</span>
       <span class="dot" id="recDot" hidden></span>
     </button>
+    </div>
   </header>
   <div class="ring" id="ring">
     <svg width="264" height="264" viewBox="0 0 264 264" aria-hidden="true">
@@ -145,6 +151,24 @@
     <button class="pill wide choice" id="askNow" type="button"></button>
     <button class="choice ghostish" id="askLeft" type="button"></button>
     <button class="choice plain" id="askDrop" type="button">这次不记</button>
+  </div>
+</div>
+
+<div id="onboard" class="onboard" hidden>
+  <svg class="ob-arrow" viewBox="0 0 110 130" aria-hidden="true">
+    <defs><marker id="obh" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#F2E3C4"></path></marker></defs>
+    <path d="M14 122 C 30 70, 60 46, 92 14" fill="none" stroke="#F2E3C4" stroke-width="3.5" stroke-linecap="round" marker-end="url(#obh)"></path>
+  </svg>
+  <div class="ob-card" role="dialog" aria-labelledby="obTitle">
+    <p class="ob-kicker">第一次来</p>
+    <h2 id="obTitle">把静时收进微信浮窗</h2>
+    <ol class="ob-steps">
+      <li><span class="n">1</span><span>点右上角的「···」</span></li>
+      <li><span class="n">2</span><span>在弹出的菜单里选「浮窗」</span></li>
+      <li><span class="n">3</span><span>以后静心时，点微信侧边的小便签，就能回到静时</span></li>
+    </ol>
+    <button class="pill wide" id="obOk" type="button">我知道了</button>
+    <a class="ob-more" id="obMore" href="guide.html">看图解和备份方法 ›</a>
   </div>
 </div>
 

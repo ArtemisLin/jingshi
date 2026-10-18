@@ -5,9 +5,10 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as sense from './sense.js';
 
-const VERSION = '0.5.3';
+const VERSION = '0.6.0';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
+const ONBOARD = 'jingshi.onboarded';
 const BG = '#F5F2EA', DIM = '#E0D9CB'; // 和 css 的 --bg / --dim 一致
 
 const $ = (id) => document.getElementById(id);
@@ -506,6 +507,21 @@ async function onImport(e) {
   }
 }
 
+// ---------- 第一次打开的引导 ----------
+// 只在微信里出现（别的浏览器没有浮窗），看过一次就不再弹；以后从首页「指南」随时能看
+
+function maybeOnboard() {
+  let seen = false;
+  try { seen = !!localStorage.getItem(ONBOARD); } catch {}
+  if (seen || !/MicroMessenger/i.test(navigator.userAgent)) return;
+  $('onboard').hidden = false;
+}
+
+function doneOnboard() {
+  try { localStorage.setItem(ONBOARD, '1'); } catch {}
+  $('onboard').hidden = true;
+}
+
 // ---------- 通用 ----------
 
 function show(name) {
@@ -580,6 +596,8 @@ function bind() {
   $('pickMonths').addEventListener('click', onPick);
 
   $('toBackup').addEventListener('click', openBackup);
+  $('obOk').addEventListener('click', doneOnboard);
+  $('obMore').addEventListener('click', doneOnboard);
   $('bakWarn').addEventListener('click', openBackup);
   $('saveSync').addEventListener('click', onSaveSync);
   $('exportBtn').addEventListener('click', onExport);
@@ -617,6 +635,7 @@ async function init() {
   try {
     await recover(); // 补记那一次会自己播「累计往上涨」，所以放在首页画好之后
   } catch {}
+  maybeOnboard();
   sync.syncDirty().then(renderBackupStatus);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }

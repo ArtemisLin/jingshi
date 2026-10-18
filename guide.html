@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#F5F2EA">
 <meta name="robots" content="noindex, nofollow">
 <meta name="format-detection" content="telephone=no">
-<title>静时 · 使用与备份教程</title>
+<title>静时 · 使用指南</title>
 <meta name="description" content="在微信里加入浮窗随时打开；交给 AI 或导出文件备份，换手机也不丢。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="静时 · 使用与备份教程">
@@ -37,6 +37,8 @@
   .prompt { width: 100%; box-sizing: border-box; height: 300px; margin-top: 10px; padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: 400 14px/1.7 -apple-system, "PingFang SC", sans-serif; resize: vertical; }
   .copy { margin-top: 10px; width: 100%; height: 48px; border-radius: 24px; background: var(--ink); color: var(--bg); font-size: 15px; letter-spacing: 0.2em; }
   .copied { display: block; height: 22px; margin-top: 6px; text-align: center; font-size: 13px; color: var(--gold-text); }
+  .shot { display: block; width: 100%; height: auto; margin: 26px 0 0; border-radius: 18px; box-shadow: 0 10px 30px rgba(70, 52, 22, 0.10); }
+  .guide h3 { margin: 30px 0 6px; font-size: 17px; font-weight: 500; letter-spacing: 0.08em; }
   .qa dt { margin-top: 16px; font-size: 15px; font-weight: 500; }
   .qa dd { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
   code { font-family: 'Jost', -apple-system, sans-serif; font-size: 14px; padding: 1px 6px; border-radius: 6px; background: var(--cell); }
@@ -46,21 +48,17 @@
 <img src="icons/icon-512.png" alt="" aria-hidden="true" width="300" height="300" style="position:absolute;left:-9999px;top:0;width:300px;height:300px">
 <main class="guide">
   <img class="logo" src="icons/logo.svg" alt="静时">
-  <h1>使用与备份教程</h1>
+  <h1>使用指南</h1>
   <p class="lead">静时只做一件事：记录你每一次静心的时长。记录存在你自己的手机上；开了备份，换手机也不会丢。</p>
+  <a class="open" href="./">返回静时</a>
 
-  <h2><span class="no">1</span>打开静时，放进微信</h2>
-  <ol>
-    <li>在微信里点开这个链接：<code>artemislin.github.io/jingshi</code></li>
-    <li>点右上角「···」，选「浮窗」。以后在微信里就能随时点开，不用再找链接。</li>
-    <li>第一次点「开始静心」时，如果问能不能使用「动作与方向」，选<b>允许</b>，拿起手机才会自动停止计时。</li>
-  </ol>
-  <a class="open" href="./">打开静时</a>
+  <img class="shot" id="float" src="img/guide-float.png" alt="加入浮窗：1 微信扫码打开静时；2 点右上角「···」；3 点选「浮窗」；4 静心时点侧边小便签，打开折叠的网页">
+  <div class="note">第一次点「开始静心」时，如果问能不能使用「动作与方向」，选<b>允许</b>，拿起手机才会自动停止计时。</div>
 
-  <h2 id="backup"><span class="no">2</span>开启自动备份（交给 AI 做）</h2>
-  <p>备份存在你自己的 GitHub 私有仓库里，只有你看得到，不花钱。设置一次，以后每次静心结束都会自动备份。</p>
-  <p>你需要：<b>一台装了 WorkBuddy（或其他能操作电脑的 AI 助手）的电脑</b>。没有 GitHub 账号也没关系，AI 会带你注册，邮箱验证码和人机验证要你自己点一下。</p>
-  <p>把下面这段话完整复制，发给电脑上的 AI：</p>
+  <img class="shot" id="backup" src="img/guide-backup.png" alt="备份记录，任选一种：方式一交给 AI 自动备份；方式二导出、导入备份文件">
+
+  <h3>方式一要发给 AI 的那段话</h3>
+  <p>你需要：<b>一台装了 WorkBuddy（或其他能操作电脑的 AI 助手）的电脑</b>。没有 GitHub 账号也没关系，AI 会带你注册，邮箱验证码和人机验证要你自己点一下。把下面这段话完整复制，发给电脑上的 AI：</p>
   <textarea class="prompt" id="prompt" readonly>请帮我在 GitHub 上为「静时」app 设置自动备份。请用浏览器按顺序操作；遇到需要我本人操作的地方（登录、邮箱验证码、人机验证、确认密码），停下来告诉我该点哪里，我弄好后你再继续。
 
 1. 打开 https://github.com ，看我有没有登录。没有账号就带我注册一个。
@@ -93,19 +91,19 @@
   </ol>
   <div class="note">钥匙相当于备份的密码，只能读写 jingshi-data 这一个仓库，碰不到你 GitHub 上的其他东西。别发给别人。</div>
 
-  <h2><span class="no">3</span>换手机了怎么办</h2>
+  <h2><span class="no">·</span>换手机了怎么办</h2>
   <ol>
-    <li>新手机上按第 1 步打开静时。</li>
+    <li>新手机上在微信里打开静时。</li>
     <li>进「记录 › 备份」，填上同一个仓库名和钥匙，点「保存并同步」。以前的记录会全部回来。</li>
   </ol>
-  <p>钥匙找不到了？把第 2 步那段话再发给 AI 一次就行。仓库已经存在，它会跳过建仓库，只帮你生成一把新钥匙。</p>
+  <p>钥匙找不到了？把上面那段话再发给 AI 一次就行。仓库已经存在，它会跳过建仓库，只帮你生成一把新钥匙。</p>
 
-  <h2><span class="no">4</span>常见问题</h2>
+  <h2><span class="no">·</span>常见问题</h2>
   <dl class="qa">
     <dt>别人能看到我的记录吗？</dt>
     <dd>不能。记录存在你手机上，备份在你自己的私有仓库里。别人打开同一个链接，看到的是他自己的空记录。</dd>
     <dt>备份页提示「钥匙无效或已过期」？</dt>
-    <dd>钥匙到期了。把第 2 步那段话再发给 AI，生成一把新钥匙，重新填进去就好。</dd>
+    <dd>钥匙到期了。把上面那段话再发给 AI，生成一把新钥匙，重新填进去就好。</dd>
     <dt>不想用 GitHub？</dt>
     <dd>也可以在「备份」里点「导出备份文件」，自己存起来；换手机时用「导入备份文件」恢复。只是要记得定期导出。</dd>
     <dt>清理了微信缓存，记录没了？</dt>
