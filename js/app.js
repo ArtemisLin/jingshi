@@ -1,11 +1,11 @@
 // 静时 · 界面与静心流程
 
-import * as L from './logic.js?v=0.6.2';
-import * as store from './store.js?v=0.6.2';
-import * as sync from './sync.js?v=0.6.2';
-import * as sense from './sense.js?v=0.6.2';
+import * as L from './logic.js?v=0.6.3';
+import * as store from './store.js?v=0.6.3';
+import * as sync from './sync.js?v=0.6.3';
+import * as sense from './sense.js?v=0.6.3';
 
-const VERSION = '0.6.2';
+const VERSION = '0.6.3';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const ONBOARD = 'jingshi.onboarded';

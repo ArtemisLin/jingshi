@@ -2,8 +2,8 @@
 // 每次同步都是「拉远端 → 与本地合并 → 写回本地 → 有变化才推远端」，
 // 所以换新手机时只要填好钥匙，旧记录会自己回来，也不会把远端的旧记录盖掉。
 
-import { merge, encodeYear, decode, yearOf } from './logic.js?v=0.6.2';
-import * as store from './store.js?v=0.6.2';
+import { merge, encodeYear, decode, yearOf } from './logic.js?v=0.6.3';
+import * as store from './store.js?v=0.6.3';
 
 const CFG = 'jingshi.gh', DIRTY = 'jingshi.dirty', STATUS = 'jingshi.sync';
 
