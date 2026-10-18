@@ -87,7 +87,13 @@ button {
 }
 .tab { position: relative; }
 a.tab { color: var(--ink); text-decoration: none; }
-.bar-right { display: flex; align-items: center; gap: 8px; }
+.bar-right { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+/* 「指南」偶尔才看：只是一行浅色字，让每天用的「记录」更突出 */
+.toplink {
+  flex: none; white-space: nowrap; min-height: 44px; padding: 0 10px;
+  display: flex; align-items: center;
+  font-size: 14px; letter-spacing: 0.2em; color: var(--muted); text-decoration: none;
+}
 
 /* 第一次在微信里打开：教用户把静时收进浮窗 */
 .onboard { position: fixed; inset: 0; z-index: 40; background: rgba(24, 21, 17, 0.8); }
@@ -235,6 +241,8 @@ a.tab { color: var(--ink); text-decoration: none; }
   position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 24px);
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
+.sit-time { font-size: 13px; letter-spacing: 0.15em; color: var(--dim-ink); }
+.sit-time .num { font-size: 15px; letter-spacing: 0.03em; }
 .sit-hint { font-size: 12px; letter-spacing: 0.15em; color: var(--muted); text-align: center; padding: 0 28px; line-height: 1.9; white-space: pre-line; }
 
 /* ---------- 静心记录 ---------- */

@@ -1,11 +1,11 @@
 // 静时 · 界面与静心流程
 
-import * as L from './logic.js';
-import * as store from './store.js';
-import * as sync from './sync.js';
-import * as sense from './sense.js';
+import * as L from './logic.js?v=0.6.1';
+import * as store from './store.js?v=0.6.1';
+import * as sync from './sync.js?v=0.6.1';
+import * as sense from './sense.js?v=0.6.1';
 
-const VERSION = '0.6.0';
+const VERSION = '0.6.1';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const ONBOARD = 'jingshi.onboarded';
@@ -158,6 +158,7 @@ function startSit() {
   $('sitTitle').textContent = '进入静心';
   $('sitHint').textContent = `${n} 秒后进入静心状态\n请不要离开此页面`;
   $('sit').classList.remove('armed');
+  $('sitTime').hidden = true;
   $('sit').hidden = false;
 
   motionAsk.then((m) => {
@@ -173,6 +174,14 @@ function startSit() {
 function beat() {
   const a = active.get();
   if (sit && a && a.s === sit.start) active.set({ ...a, beat: Date.now() });
+  showSitTime();
+}
+
+// 静心中底部的一行：「06:12 开始 · 已静心 12 分钟」，只到分钟，不跳秒，不足一分钟写 0
+function showSitTime() {
+  if (!sit || sit.phase !== 'armed') return;
+  const min = Math.floor((Date.now() - sit.start) / 60000);
+  $('sitTime').innerHTML = `<span class="num">${L.fmtClock(sit.start)}</span> 开始 · 已静心 <span class="num">${min}</span> 分钟`;
 }
 
 // 离开页面（锁屏、切走、关掉）：记下时刻，计时照常继续
@@ -194,6 +203,8 @@ function tickGrace() {
   $('sitTitle').textContent = '静心中';
   if (sit.motion === 'ok') $('sitHint').textContent = '请不要离开此页面\n拿起手机或解锁即停止计时';
   $('sit').classList.add('armed');
+  $('sitTime').hidden = false;
+  showSitTime();
   setThemeColor(DIM);
 }
 

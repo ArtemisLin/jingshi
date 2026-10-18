@@ -1,5 +1,5 @@
 // 静时 · 离线缓存。发新版时改 CACHE 的版本号。
-const CACHE = 'jingshi-0.6.0';
+const CACHE = 'jingshi-0.6.1';
 const FILES = [
   './',
   './index.html',
@@ -20,7 +20,8 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload'：绕过浏览器自己的缓存，保证存进来的是这一版的文件，不会新页面配旧样式
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
