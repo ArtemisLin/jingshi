@@ -6,6 +6,6 @@
 - 满 5 分 30 秒才计入总时，不足的记录显示为红色、不计。
 - 记录只存在自己的手机上；可选自动备份到自己的 GitHub 私有仓库。
 
-用法：iPhone 上用 Safari 打开 https://artemislin.github.io/jingshi/ ，点分享按钮 →「添加到主屏幕」。
+用法：在微信里打开 https://artemislin.github.io/jingshi/ ，点右上角「···」→「浮窗」，以后从微信侧边一点就回来。
 
 数字字体 Jost 采用 SIL Open Font License 1.1，见 `fonts/OFL.txt`。
