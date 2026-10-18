@@ -1,11 +1,12 @@
 // 静时 · 界面与静心流程
 
-import * as L from './logic.js?v=0.6.3';
-import * as store from './store.js?v=0.6.3';
-import * as sync from './sync.js?v=0.6.3';
-import * as sense from './sense.js?v=0.6.3';
+import * as L from './logic.js?v=0.7.0';
+import * as store from './store.js?v=0.7.0';
+import * as sync from './sync.js?v=0.7.0';
+import * as sense from './sense.js?v=0.7.0';
+import * as stat from './stat.js?v=0.7.0';
 
-const VERSION = '0.6.3';
+const VERSION = '0.7.0';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const ONBOARD = 'jingshi.onboarded';
@@ -88,6 +89,7 @@ async function finish(r) {
   renderHome();
   if (!$('records').hidden) renderRecords();
   showResult(r, before);
+  stat.event(L.isValid(r) ? '完成有效静心' : '不足五分半');
 }
 
 // 出定结果就在圆环里：有效的让累计从旧值涨到新值，不计的盖一枚「不计」朱印。7 秒后淡出。
@@ -148,6 +150,7 @@ function hideResult() {
 function startSit() {
   if (sit || Date.now() - lastEnd < 1500) return;
   const motionAsk = sense.askMotion(); // 必须在点击的同一刻发起，iOS 才认是用户触发的
+  stat.event('开始静心');
   const start = Date.now();
   sit = { start, phase: 'grace', motion: null };
   active.set({ s: start });
@@ -221,6 +224,7 @@ async function endSit(reason) {
   setThemeColor(BG);
   if (reason === 'cancel') {
     active.clear();
+    stat.event('取消静心');
     return;
   }
   active.set({ s: start, end: at }); // 先同步记下结束时间，再慢慢存
@@ -477,6 +481,7 @@ async function onSaveSync() {
     renderAll();
     renderBackupStatus();
     toast('备份已开启，记录已同步');
+    stat.event('开启备份');
   } catch (e) {
     el.className = 'status bad';
     el.textContent = e.message;
@@ -486,6 +491,7 @@ async function onSaveSync() {
 }
 
 async function onExport() {
+  stat.event('导出备份');
   const name = `静时备份-${L.dayKey(Date.now())}.json`;
   const file = new File([L.encodeAll(list)], name, { type: 'application/json' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -512,6 +518,7 @@ async function onImport(e) {
     await reload();
     renderAll();
     toast(changed.length ? `导入了 ${changed.length} 条新记录` : '没有新记录，都已经在了');
+    stat.event('导入备份');
     sync.syncDirty().then(renderBackupStatus);
   } catch (err) {
     toast(`导入失败：${err.message}`, 'bad');
@@ -526,6 +533,7 @@ function maybeOnboard() {
   try { seen = !!localStorage.getItem(ONBOARD); } catch {}
   if (seen || !/MicroMessenger/i.test(navigator.userAgent)) return;
   $('onboard').hidden = false;
+  stat.event('看到浮窗引导');
 }
 
 function doneOnboard() {
@@ -634,6 +642,7 @@ function bind() {
 
 async function init() {
   if (history.state && history.state.v === 'records') history.replaceState(null, ''); // 刷新后从首页开始
+  stat.pageview();
   bind();
   store.persist();
   try {
