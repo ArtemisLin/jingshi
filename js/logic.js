@@ -124,18 +124,28 @@ export function yearView(list, year) {
     }));
 }
 
+// 一条记录只留认识的字段：s 开始、e 结束、x 已删除、p 来自哪个定时（定时「计入」的才有）
+const PLAN_ID = /^[\w-]{1,32}$/;
+function norm(r) {
+  const o = { s: r.s, e: r.e };
+  if (r.x) o.x = 1;
+  if (typeof r.p === 'string' && PLAN_ID.test(r.p)) o.p = r.p;
+  return o;
+}
+
 // 两份记录合并：按开始时间对齐，取并集；任何一边删过的就算删了
 export function merge(a, b) {
   const map = new Map();
   for (const r of [...a, ...b]) {
     const cur = map.get(r.s);
-    if (!cur) map.set(r.s, r.x ? { s: r.s, e: r.e, x: 1 } : { s: r.s, e: r.e });
-    else if (r.x && !cur.x) cur.x = 1;
+    if (!cur) { map.set(r.s, norm(r)); continue; }
+    if (r.x && !cur.x) cur.x = 1;
+    if (!cur.p && norm(r).p) cur.p = r.p;
   }
   return [...map.values()].sort((p, q) => p.s - q.s);
 }
 
-const clean = (r) => (r.x ? `{"s":${r.s},"e":${r.e},"x":1}` : `{"s":${r.s},"e":${r.e}}`);
+const clean = (r) => JSON.stringify(norm(r));
 
 // 备份文件：一年一个，一行一条，方便在 GitHub 上看历史
 export function encodeYear(year, list) {
@@ -143,10 +153,11 @@ export function encodeYear(year, list) {
   return `{"app":"jingshi","v":1,"year":${year},"sessions":[\n${rows.join(',\n')}\n]}\n`;
 }
 
-// 导出文件：全部记录
-export function encodeAll(list) {
+// 导出文件：全部记录 + 定时设置
+export function encodeAll(list, plans) {
   const rows = [...list].sort((p, q) => p.s - q.s).map(clean);
-  return `{"app":"jingshi","v":1,"sessions":[\n${rows.join(',\n')}\n]}\n`;
+  const extra = plans ? `,\n"plans":${JSON.stringify(mergePlans(plans, {}))}` : '';
+  return `{"app":"jingshi","v":1,"sessions":[\n${rows.join(',\n')}\n]${extra}}\n`;
 }
 
 // 读备份 / 导入文件；不认识的格式抛错，坏掉的单条直接丢掉
@@ -155,7 +166,7 @@ export function decode(text) {
   if (!j || j.app !== 'jingshi' || !Array.isArray(j.sessions)) throw new Error('不是静时的备份文件');
   return j.sessions
     .filter((r) => r && Number.isFinite(r.s) && Number.isFinite(r.e) && r.e > r.s)
-    .map((r) => (r.x ? { s: r.s, e: r.e, x: 1 } : { s: r.s, e: r.e }));
+    .map(norm);
 }
 
 // ---------- 上次静心没正常结束，打开时怎么补记 ----------
@@ -193,4 +204,107 @@ export function peopleEvents(state, today, hasHistory) {
   if (!seen) { events.push(hasHistory ? '老用户' : '新用户'); seen = today; }
   if (last !== today) { events.push('今日活跃'); last = today; }
   return { events, seen, last };
+}
+
+// ---------- 定时静心（像闹钟：每个定时有开始、结束、重复的星期几、开关） ----------
+// 一个定时 = { id, start: '05:55', end: '06:55', days: [1..7]（周一=1 … 周日=7）, on, c: 建立时刻, u: 最后修改时刻 }
+// 删掉的留一条 { id, x: 1, u }，好让删除也能同步到别的手机。
+// plans = { items: [...], skip: { 'id@2026-10-20': 点「不计」的时刻 } }
+export const MAX_PLANS = 10;
+export const PLAN_WINDOW_DAYS = 7; // 只看最近 7 天；更早还没确认的自动作废
+const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const CN_DAY = ['', '一', '二', '三', '四', '五', '六', '日'];
+
+export const isoDay = (ts) => new Date(ts).getDay() || 7;
+
+function validPlan(p) {
+  return p && typeof p.id === 'string' && PLAN_ID.test(p.id) && HM.test(p.start) && HM.test(p.end) && p.start !== p.end &&
+    Array.isArray(p.days) && p.days.length > 0 && p.days.every((d) => Number.isInteger(d) && d >= 1 && d <= 7);
+}
+
+function normPlan(p) {
+  if (p.x) return { id: p.id, x: 1, u: p.u || 0 };
+  return { id: p.id, start: p.start, end: p.end, days: [...new Set(p.days)].sort((a, b) => a - b), on: !!p.on, c: p.c || 0, u: p.u || 0 };
+}
+
+export const livePlans = (plans) => ((plans && plans.items) || []).filter((p) => !p.x);
+
+// 某一天这个定时的起止（结束早于开始 = 跨到第二天）
+export function planSpan(p, dayTs) {
+  const d = new Date(dayTs);
+  const [sh, sm] = p.start.split(':').map(Number), [eh, em] = p.end.split(':').map(Number);
+  const s = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh, sm).getTime();
+  let e = new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em).getTime();
+  if (e <= s) e = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, eh, em).getTime();
+  return { s, e };
+}
+
+export const planMinutes = (p) => { const { s, e } = planSpan(p, Date.UTC(2026, 0, 5, 12)); return Math.round((e - s) / 60000); };
+
+// 重复显示成人话：每天 / 工作日 / 周末 / 周一至周六 / 周一、周三、周五
+export function daysLabel(days) {
+  const d = [...new Set(days || [])].filter((n) => n >= 1 && n <= 7).sort((a, b) => a - b);
+  if (d.length === 7) return '每天';
+  if (d.join() === '1,2,3,4,5') return '工作日';
+  if (d.join() === '6,7') return '周末';
+  if (d.length >= 3 && d[d.length - 1] - d[0] === d.length - 1) return `周${CN_DAY[d[0]]}至周${CN_DAY[d[d.length - 1]]}`;
+  return d.map((n) => `周${CN_DAY[n]}`).join('、');
+}
+
+// 现在该出现哪些「待确认」：最近 7 天里、已经结束、建这个定时之后才开始的时段；
+// 已计入的（有 p 记录，删了也算处理过）、点过不计的、那段时间本来就亲手计过时的，都不再出现。
+export function pendingPlans(plans, records, now) {
+  const out = [];
+  const decided = new Set(records.filter((r) => r.p).map((r) => `${r.p}@${dayKey(r.s)}`));
+  const skip = (plans && plans.skip) || {};
+  const real = live(records);
+  for (const p of livePlans(plans)) {
+    if (!p.on || !validPlan(p)) continue;
+    const today = new Date(now);
+    for (let i = 0; i < PLAN_WINDOW_DAYS; i++) {
+      const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i, 12).getTime();
+      if (!p.days.includes(isoDay(day))) continue;
+      const span = planSpan(p, day);
+      if (span.e > now || span.s < (p.c || 0)) continue;
+      const key = `${p.id}@${dayKey(span.s)}`;
+      if (decided.has(key) || skip[key]) continue;
+      if (real.some((r) => r.s < span.e && r.e > span.s)) continue;
+      out.push({ key, id: p.id, s: span.s, e: span.e });
+    }
+  }
+  return out.sort((a, b) => b.s - a.s);
+}
+
+// 两份定时设置合并（本机 + 备份）：同一个定时取最后改过的；「不计」取并集，只留最近 30 天
+export function mergePlans(a, b, now = Date.now()) {
+  const items = new Map();
+  for (const p of [...((a && a.items) || []), ...((b && b.items) || [])]) {
+    if (!p || typeof p.id !== 'string' || !PLAN_ID.test(p.id)) continue;
+    if (!p.x && !validPlan(p)) continue;
+    const cur = items.get(p.id);
+    if (!cur || (p.u || 0) > (cur.u || 0)) items.set(p.id, normPlan(p));
+  }
+  const skip = {};
+  const cutoff = now - 30 * 86400000;
+  for (const src of [a && a.skip, b && b.skip]) {
+    for (const [k, t] of Object.entries(src || {})) {
+      if (Number.isFinite(t) && t >= cutoff && /^[\w-]{1,32}@\d{4}-\d\d-\d\d$/.test(k)) skip[k] = Math.max(skip[k] || 0, t);
+    }
+  }
+  const list = [...items.values()].sort((p, q) => (p.c || 0) - (q.c || 0) || (p.id < q.id ? -1 : 1));
+  return { items: list, skip: Object.fromEntries(Object.entries(skip).sort()) };
+}
+
+// 备份里的定时设置文件：data/plans.json
+export function encodePlans(plans) {
+  const m = mergePlans(plans, {});
+  return `{"app":"jingshi","v":1,"kind":"plans",\n"items":[\n${m.items.map((p) => JSON.stringify(p)).join(',\n')}\n],\n"skip":${JSON.stringify(m.skip)}}\n`;
+}
+
+// 从定时设置文件或导出文件里读出定时设置；没有就返回 null
+export function decodePlans(text) {
+  const j = JSON.parse(text);
+  if (!j || j.app !== 'jingshi') throw new Error('不是静时的备份文件');
+  const src = j.kind === 'plans' ? j : j.plans;
+  return src ? mergePlans(src, {}) : null;
 }

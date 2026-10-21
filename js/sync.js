@@ -2,8 +2,9 @@
 // 每次同步都是「拉远端 → 与本地合并 → 写回本地 → 有变化才推远端」，
 // 所以换新手机时只要填好钥匙，旧记录会自己回来，也不会把远端的旧记录盖掉。
 
-import { merge, encodeYear, decode, yearOf } from './logic.js?v=0.7.1';
-import * as store from './store.js?v=0.7.1';
+import { merge, encodeYear, decode, yearOf, mergePlans, encodePlans, decodePlans } from './logic.js?v=0.8.0';
+import * as store from './store.js?v=0.8.0';
+import * as plans from './plans.js?v=0.8.0';
 
 const CFG = 'jingshi.gh', DIRTY = 'jingshi.dirty', STATUS = 'jingshi.sync';
 
@@ -86,6 +87,34 @@ async function syncYear(cfg, year, retry = true) {
 }
 
 // 同步排队一个一个来，免得两次同步同时改同一个文件
+// 定时设置：data/plans.json，和记录一样「拉远端 → 合并 → 写回本机 → 有变化才推」
+async function syncPlans(cfg, retry = true) {
+  const res = await api(cfg, '/contents/data/plans.json');
+  let remote = null, sha = null, text = '';
+  if (res.ok) {
+    const j = await res.json();
+    sha = j.sha;
+    text = new TextDecoder().decode(Uint8Array.from(atob(j.content.replace(/\s/g, '')), (c) => c.charCodeAt(0)));
+    remote = decodePlans(text);
+  } else if (res.status !== 404) {
+    throw await fail(res);
+  }
+  const merged = mergePlans(plans.get(), remote || {});
+  plans.setSynced(merged);
+  const out = encodePlans(merged);
+  if (out === text || (!remote && !merged.items.length && !Object.keys(merged.skip).length)) { plans.clearDirty(); return; }
+  const bytes = new TextEncoder().encode(out);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  const put = await api(cfg, '/contents/data/plans.json', {
+    method: 'PUT',
+    body: JSON.stringify({ message: '静时定时设置', content: btoa(bin), ...(sha ? { sha } : {}) }),
+  });
+  if ((put.status === 409 || put.status === 422) && retry) return syncPlans(cfg, false);
+  if (!put.ok) throw await fail(put);
+  plans.clearDirty();
+}
+
 let chain = Promise.resolve();
 function queued(fn) {
   const p = chain.then(fn);
@@ -98,12 +127,13 @@ export function syncDirty() {
   return queued(async () => {
     const cfg = getConfig();
     const years = read(DIRTY, []);
-    if (!cfg || !years.length) return;
+    if (!cfg || (!years.length && !plans.isDirty())) return;
     try {
       for (const y of years) {
         await syncYear(cfg, y);
         write(DIRTY, read(DIRTY, []).filter((d) => d !== y));
       }
+      if (plans.isDirty()) await syncPlans(cfg);
       setStatus(true, '');
     } catch (e) {
       recordFailure(e);
@@ -127,6 +157,7 @@ export function syncAll() {
       const local = (await store.all()).map((r) => yearOf(r.s));
       for (const y of new Set([...years, ...local])) await syncYear(cfg, y);
       write(DIRTY, []);
+      await syncPlans(cfg);
       setStatus(true, '');
     } catch (e) {
       recordFailure(e);

@@ -1,12 +1,13 @@
 // 静时 · 界面与静心流程
 
-import * as L from './logic.js?v=0.7.1';
-import * as store from './store.js?v=0.7.1';
-import * as sync from './sync.js?v=0.7.1';
-import * as sense from './sense.js?v=0.7.1';
-import * as stat from './stat.js?v=0.7.1';
+import * as L from './logic.js?v=0.8.0';
+import * as store from './store.js?v=0.8.0';
+import * as sync from './sync.js?v=0.8.0';
+import * as sense from './sense.js?v=0.8.0';
+import * as stat from './stat.js?v=0.8.0';
+import * as plans from './plans.js?v=0.8.0';
 
-const VERSION = '0.7.1';
+const VERSION = '0.8.0';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const ONBOARD = 'jingshi.onboarded';
@@ -253,6 +254,7 @@ function renderHome() {
     html += `<div class="bad">${td.n ? '另有' : '有'} ${td.bad.length} 次不足五分半，不计</div>`;
   }
   $('today').innerHTML = html;
+  renderPlanCard();
 }
 
 // ---------- 静心记录 ----------
@@ -267,6 +269,7 @@ function renderRecords() {
   $('sCur').textContent = st.current;
   $('sLong').textContent = st.longest;
 
+  renderPending();
   const years = L.yearsWithData(list);
   if (!years.includes(viewYear)) viewYear = years[0] ?? new Date().getFullYear();
   $('yearBtn').hidden = !years.length;
@@ -308,7 +311,7 @@ function rowHTML(r) {
     <button class="del" type="button" aria-label="删除 ${L.fmtClock(r.s)} 开始的这条记录">删除</button>
     <div class="row${r.ok ? '' : ' bad'}">
       <span class="num">${L.fmtClock(r.s)} – ${L.fmtClock(r.e)}</span>
-      <span class="row-dur">${r.ok ? '' : '<span class="tag">不计</span>'}<span class="num">${L.fmtDur(r.e - r.s)}</span></span>
+      <span class="row-dur">${r.p ? '<span class="tag plan">定时</span>' : ''}${r.ok ? '' : '<span class="tag">不计</span>'}<span class="num">${L.fmtDur(r.e - r.s)}</span></span>
     </div>
   </div>`;
 }
@@ -494,7 +497,7 @@ async function onSaveSync() {
 async function onExport() {
   stat.event('导出备份');
   const name = `静时备份-${L.dayKey(Date.now())}.json`;
-  const file = new File([L.encodeAll(list)], name, { type: 'application/json' });
+  const file = new File([L.encodeAll(list, plans.get())], name, { type: 'application/json' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file] }); } catch {}
     return;
@@ -511,7 +514,10 @@ async function onImport(e) {
   e.target.value = '';
   if (!f) return;
   try {
-    const incoming = L.decode(await f.text());
+    const text = await f.text();
+    const incoming = L.decode(text);
+    const inPlans = L.decodePlans(text);
+    if (inPlans) plans.set(L.mergePlans(plans.get(), inPlans));
     const before = new Map(list.map((r) => [r.s, r]));
     const changed = L.merge(list, incoming).filter((r) => { const b = before.get(r.s); return !b || !!b.x !== !!r.x; });
     if (changed.length) await store.putMany(changed);
@@ -524,6 +530,176 @@ async function onImport(e) {
   } catch (err) {
     toast(`导入失败：${err.message}`, 'bad');
   }
+}
+
+// ---------- 定时静心（像闹钟：到点自动生成一条记录，点「计入」才算数） ----------
+
+let editingPlan = null; // 正在编辑的定时 id；null = 新建
+let planDays = [];
+
+function dayWord(ts) {
+  const k = L.dayKey(ts), today = L.dayKey(Date.now());
+  if (k === today) return '今天';
+  if (k === L.shiftDay(today, -1)) return '昨天';
+  return L.fmtDate(ts);
+}
+const spanText = (it) => `${L.fmtClock(it.s)} – ${L.fmtClock(it.e)}`;
+function durWords(ms) {
+  const t = L.hm(ms);
+  return t.h ? `${t.h} 时 ${t.m} 分` : `${Number(t.m)} 分钟`;
+}
+const pendingNow = () => L.pendingPlans(plans.get(), list, Date.now());
+
+// 首页圆环下面：最近的一条待确认
+function renderPlanCard() {
+  const p = pendingNow();
+  const card = $('planCard');
+  if (!p.length) { card.hidden = true; return; }
+  const it = p[0];
+  card.hidden = false;
+  card.dataset.key = it.key;
+  $('pcLabel').textContent = `定时静心 · ${dayWord(it.s)}`;
+  $('pcTime').textContent = spanText(it);
+  $('pcDur').textContent = durWords(it.e - it.s);
+  $('pcMore').hidden = p.length < 2;
+  $('pcMore').textContent = `还有 ${p.length - 1} 条 ›`;
+}
+
+// 记录页顶上：全部待确认
+function renderPending() {
+  const p = pendingNow();
+  $('pendingBox').hidden = !p.length;
+  $('pendingList').innerHTML = p.map((it) => `<div class="pend-row" data-key="${it.key}">
+    <div class="pend-info"><b class="num">${spanText(it)}</b><span>${dayWord(it.s)} · ${durWords(it.e - it.s)}</span></div>
+    <button class="pill" type="button" data-yes>计入</button>
+    <button class="pc-no" type="button" data-no>不计</button>
+  </div>`).join('');
+}
+
+async function decidePlan(key, yes) {
+  const it = pendingNow().find((x) => x.key === key);
+  if (!it) return;
+  const onRecords = !$('records').hidden;
+  if (yes) {
+    if (list.some((x) => x.s === it.s)) return;
+    const before = L.totals(list).ms;
+    const r = { s: it.s, e: it.e, p: it.id };
+    await save(r);
+    renderHome();
+    if (onRecords) { renderRecords(); toast(`已计入 ${durWords(r.e - r.s)}`); } else showResult(r, before);
+    stat.event('定时计入');
+  } else {
+    const ps = plans.get();
+    ps.skip[key] = Date.now();
+    plans.set(ps);
+    sync.syncDirty().then(renderBackupStatus);
+    renderHome();
+    if (onRecords) renderRecords();
+    toast('这一次不计');
+    stat.event('定时不计');
+  }
+}
+
+// 定时设置面板
+function renderPlans() {
+  const items = L.livePlans(plans.get());
+  $('planRows').innerHTML = items.length
+    ? items.map((p) => `<div class="plan-row${p.on ? '' : ' off'}">
+        <button class="plan-main" type="button" data-edit="${p.id}">
+          <span class="plan-time num">${p.start} – ${p.end}</span>
+          <span class="plan-days">${L.daysLabel(p.days)} · ${durWords(L.planMinutes(p) * 60000)}</span>
+        </button>
+        <label class="switch" aria-label="开关 ${p.start} 的定时"><input type="checkbox" data-toggle="${p.id}"${p.on ? ' checked' : ''}><span></span></label>
+      </div>`).join('')
+    : '<p class="plan-empty">还没有定时。每天固定时间打坐，就建一个。</p>';
+  const full = items.length >= L.MAX_PLANS;
+  $('planAdd').disabled = full;
+  $('planAdd').textContent = full ? `最多 ${L.MAX_PLANS} 个定时` : '＋ 新建定时';
+}
+
+function showPlanList() {
+  $('planEdit').hidden = true;
+  $('plansView').hidden = false;
+  renderPlans();
+}
+
+function openPlans() {
+  showPlanList();
+  openSheet('plansSheet');
+}
+
+function editPlan(id) {
+  const p = id ? L.livePlans(plans.get()).find((x) => x.id === id) : null;
+  editingPlan = p ? p.id : null;
+  $('planEditTitle').textContent = p ? '编辑定时' : '新建定时';
+  $('planStart').value = p ? p.start : '06:00';
+  $('planEnd').value = p ? p.end : '07:00';
+  planDays = p ? [...p.days] : [1, 2, 3, 4, 5, 6, 7];
+  renderDays();
+  $('planErr').hidden = true;
+  $('planDel').hidden = !p;
+  $('plansView').hidden = true;
+  $('planEdit').hidden = false;
+}
+
+function renderDays() {
+  for (const b of $('planDays').querySelectorAll('[data-d]')) b.setAttribute('aria-pressed', planDays.includes(Number(b.dataset.d)) ? 'true' : 'false');
+  $('planDaysLabel').textContent = planDays.length ? L.daysLabel(planDays) : '请至少选一天';
+}
+
+function onDayTap(e) {
+  const b = e.target.closest('[data-d]');
+  if (!b) return;
+  const d = Number(b.dataset.d);
+  planDays = planDays.includes(d) ? planDays.filter((x) => x !== d) : [...planDays, d];
+  renderDays();
+}
+
+const newPlanId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+function afterPlansChange() {
+  sync.syncDirty().then(renderBackupStatus);
+  renderHome();
+  if (!$('records').hidden) renderRecords();
+}
+
+function savePlan() {
+  const start = $('planStart').value, end = $('planEnd').value;
+  const err = (m) => { $('planErr').textContent = m; $('planErr').hidden = false; };
+  if (!/^\d\d:\d\d$/.test(start) || !/^\d\d:\d\d$/.test(end)) return err('请填好开始和结束时间');
+  if (start === end) return err('开始和结束不能是同一个时间');
+  if (!planDays.length) return err('请至少选一天');
+  const ps = plans.get(), now = Date.now();
+  if (editingPlan) {
+    ps.items = ps.items.map((p) => (p.id === editingPlan ? { ...p, start, end, days: planDays, u: now } : p));
+  } else {
+    if (L.livePlans(ps).length >= L.MAX_PLANS) return err(`最多 ${L.MAX_PLANS} 个定时`);
+    ps.items.push({ id: newPlanId(), start, end, days: planDays, on: true, c: now, u: now });
+    stat.event('新建定时');
+  }
+  plans.set(ps);
+  afterPlansChange();
+  showPlanList();
+}
+
+function deletePlan() {
+  if (!editingPlan) return;
+  const ps = plans.get();
+  ps.items = ps.items.map((p) => (p.id === editingPlan ? { id: p.id, x: 1, u: Date.now() } : p));
+  plans.set(ps);
+  afterPlansChange();
+  showPlanList();
+  toast('已删除这个定时');
+}
+
+function onPlanToggle(e) {
+  const t = e.target.closest('[data-toggle]');
+  if (!t) return;
+  const ps = plans.get();
+  ps.items = ps.items.map((p) => (p.id === t.dataset.toggle ? { ...p, on: t.checked, u: Date.now() } : p));
+  plans.set(ps);
+  afterPlansChange();
+  renderPlans();
 }
 
 // ---------- 第一次打开的引导 ----------
@@ -586,6 +762,7 @@ function onPopState() {
   }
   closeSheet('picker');
   closeSheet('backup');
+  closeSheet('plansSheet');
   renderHome();
   show('home');
 }
@@ -631,6 +808,23 @@ function bind() {
   $('pickMonths').addEventListener('click', onPick);
 
   $('toBackup').addEventListener('click', openBackup);
+  $('toPlans').addEventListener('click', openPlans);
+  $('planAdd').addEventListener('click', () => editPlan(null));
+  $('planRows').addEventListener('click', (e) => { const b = e.target.closest('[data-edit]'); if (b) editPlan(b.dataset.edit); });
+  $('planRows').addEventListener('change', onPlanToggle);
+  $('planDays').addEventListener('click', onDayTap);
+  $('planSave').addEventListener('click', savePlan);
+  $('planCancel').addEventListener('click', showPlanList);
+  $('planDel').addEventListener('click', deletePlan);
+  $('pcYes').addEventListener('click', () => decidePlan($('planCard').dataset.key, true));
+  $('pcNo').addEventListener('click', () => decidePlan($('planCard').dataset.key, false));
+  $('pcMore').addEventListener('click', openRecords);
+  $('pendingList').addEventListener('click', (e) => {
+    const row = e.target.closest('.pend-row');
+    if (!row) return;
+    if (e.target.closest('[data-yes]')) decidePlan(row.dataset.key, true);
+    else if (e.target.closest('[data-no]')) decidePlan(row.dataset.key, false);
+  });
   $('obOk').addEventListener('click', doneOnboard);
   $('obMore').addEventListener('click', doneOnboard);
   $('bakWarn').addEventListener('click', openBackup);
@@ -674,6 +868,7 @@ async function init() {
     await recover(); // 补记那一次会自己播「累计往上涨」，所以放在首页画好之后
   } catch {}
   maybeOnboard();
+  setInterval(() => { if (!sit && !document.hidden) renderPlanCard(); }, 60000); // 开着首页时到点也能冒出来
   sync.syncDirty().then(renderBackupStatus);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }

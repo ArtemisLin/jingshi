@@ -26,8 +26,8 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-180.png">
 <link rel="preload" href="fonts/jost.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="css/app.css?v=0.7.1">
-<script type="module" src="js/app.js?v=0.7.1"></script>
+<link rel="stylesheet" href="css/app.css?v=0.8.0">
+<script type="module" src="js/app.js?v=0.8.0"></script>
 </head>
 <body>
 <img src="icons/icon-512.png" alt="" aria-hidden="true" width="300" height="300" style="position:absolute;left:-9999px;top:0;width:300px;height:300px">
@@ -58,6 +58,14 @@
     <div class="gain" id="gain" aria-live="polite">本次 <span class="num" id="gainV"></span></div>
     <div class="miss" id="miss" aria-live="polite">本次 <span class="num" id="missV"></span><span class="seal">不<br>计</span></div>
   </div>
+  <section class="plan-card" id="planCard" hidden aria-label="定时静心">
+    <div class="pc-head"><span id="pcLabel">定时静心 · 今天</span><button class="pc-more" id="pcMore" type="button" hidden></button></div>
+    <div class="pc-main"><span class="pc-time num" id="pcTime"></span><span class="pc-dur" id="pcDur"></span></div>
+    <div class="pc-btns">
+      <button class="pill pc-yes" id="pcYes" type="button">计入</button>
+      <button class="pc-no" id="pcNo" type="button">不计</button>
+    </div>
+  </section>
   <div class="cta"><button id="start" class="pill" type="button">开始静心</button></div>
   <footer class="today" id="today"></footer>
 </main>
@@ -86,7 +94,10 @@
       <svg width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M7 1 L1 7 L7 13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
       <span>返回首页</span>
     </button>
-    <button id="toBackup" class="tab backup" type="button">备份<span class="dot" id="bakDot" hidden></span></button>
+    <div class="bar-right">
+      <button id="toPlans" class="tab" type="button">定时</button>
+      <button id="toBackup" class="tab backup" type="button">备份<span class="dot" id="bakDot" hidden></span></button>
+    </div>
   </header>
   <h1 class="page-title">静心记录</h1>
   <button class="warn" id="bakWarn" type="button" hidden></button>
@@ -95,6 +106,10 @@
     <div class="stat"><span class="stat-k">有效</span><span class="stat-v"><span class="num" id="sN">0</span><small> 次</small></span></div>
     <div class="stat"><span class="stat-k">已连续</span><span class="stat-v"><span class="num" id="sCur">0</span><small> 天</small></span><span class="stat-sub">最长连续 <span class="num" id="sLong">0</span> 天</span></div>
   </div>
+  <section class="pending" id="pendingBox" hidden>
+    <div class="pending-head">待确认的定时静心</div>
+    <div id="pendingList"></div>
+  </section>
   <div class="yearbar">
     <button id="yearBtn" class="yearbtn" type="button" aria-label="选择年月">
       <span class="num" id="yearLabel"></span>
@@ -137,6 +152,36 @@
       <label class="ghost">导入备份文件<input id="importFile" type="file" accept="application/json,.json" hidden></label>
     </div>
     <p class="ver" id="ver"></p>
+  </div>
+</div>
+
+<div id="plansSheet" class="sheet-wrap" hidden>
+  <div class="backdrop" data-close></div>
+  <div class="sheet" role="dialog" aria-label="定时静心">
+    <div class="handle"></div>
+    <div id="plansView">
+      <h2>定时静心</h2>
+      <p class="status">到了设定的时间，会自动生成一条记录；点「计入」才算进累计。</p>
+      <div class="plan-rows" id="planRows"></div>
+      <button class="ghost full" id="planAdd" type="button">＋ 新建定时</button>
+    </div>
+    <div id="planEdit" hidden>
+      <h2 id="planEditTitle">新建定时</h2>
+      <div class="time-row">
+        <label class="field">开始<input id="planStart" type="time" required></label>
+        <label class="field">结束<input id="planEnd" type="time" required></label>
+      </div>
+      <div class="field">
+        <span>重复 · <b id="planDaysLabel">每天</b></span>
+        <div class="days" id="planDays">
+          <button type="button" data-d="1">一</button><button type="button" data-d="2">二</button><button type="button" data-d="3">三</button><button type="button" data-d="4">四</button><button type="button" data-d="5">五</button><button type="button" data-d="6">六</button><button type="button" data-d="7">日</button>
+        </div>
+      </div>
+      <p class="status bad" id="planErr" hidden></p>
+      <button class="pill wide" id="planSave" type="button">保存</button>
+      <button class="choice plain" id="planCancel" type="button">取消</button>
+      <button class="choice plain del-text" id="planDel" type="button" hidden>删除这个定时</button>
+    </div>
   </div>
 </div>
 
