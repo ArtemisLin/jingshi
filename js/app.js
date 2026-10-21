@@ -1,13 +1,13 @@
 // 静时 · 界面与静心流程
 
-import * as L from './logic.js?v=0.8.0';
-import * as store from './store.js?v=0.8.0';
-import * as sync from './sync.js?v=0.8.0';
-import * as sense from './sense.js?v=0.8.0';
-import * as stat from './stat.js?v=0.8.0';
-import * as plans from './plans.js?v=0.8.0';
+import * as L from './logic.js?v=0.8.1';
+import * as store from './store.js?v=0.8.1';
+import * as sync from './sync.js?v=0.8.1';
+import * as sense from './sense.js?v=0.8.1';
+import * as stat from './stat.js?v=0.8.1';
+import * as plans from './plans.js?v=0.8.1';
 
-const VERSION = '0.8.0';
+const VERSION = '0.8.1';
 const GRACE = window.JINGSHI_GRACE_MS || L.GRACE_MS; // 测试时可调短
 const ACTIVE = 'jingshi.active';
 const ONBOARD = 'jingshi.onboarded';
@@ -270,6 +270,7 @@ function renderRecords() {
   $('sLong').textContent = st.longest;
 
   renderPending();
+  updatePlansTab();
   const years = L.yearsWithData(list);
   if (!years.includes(viewYear)) viewYear = years[0] ?? new Date().getFullYear();
   $('yearBtn').hidden = !years.length;
@@ -570,7 +571,7 @@ function renderPending() {
   const p = pendingNow();
   $('pendingBox').hidden = !p.length;
   $('pendingList').innerHTML = p.map((it) => `<div class="pend-row" data-key="${it.key}">
-    <div class="pend-info"><b class="num">${spanText(it)}</b><span>${dayWord(it.s)} · ${durWords(it.e - it.s)}</span></div>
+    <div class="pend-info"><b class="num">${spanText(it)}</b><span>${dayWord(it.s)}</span></div>
     <button class="pill" type="button" data-yes>计入</button>
     <button class="pc-no" type="button" data-no>不计</button>
   </div>`).join('');
@@ -611,7 +612,7 @@ function renderPlans() {
         </button>
         <label class="switch" aria-label="开关 ${p.start} 的定时"><input type="checkbox" data-toggle="${p.id}"${p.on ? ' checked' : ''}><span></span></label>
       </div>`).join('')
-    : '<p class="plan-empty">还没有定时。每天固定时间打坐，就建一个。</p>';
+    : '';
   const full = items.length >= L.MAX_PLANS;
   $('planAdd').disabled = full;
   $('planAdd').textContent = full ? `最多 ${L.MAX_PLANS} 个定时` : '＋ 新建定时';
@@ -657,7 +658,15 @@ function onDayTap(e) {
 
 const newPlanId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
+// 有开着的定时时，记录页的「定时」按钮变成淡金色并写上个数
+function updatePlansTab() {
+  const n = L.livePlans(plans.get()).filter((p) => p.on).length;
+  $('toPlans').classList.toggle('on', n > 0);
+  $('toPlans').textContent = n ? `定时 · ${n}` : '定时';
+}
+
 function afterPlansChange() {
+  updatePlansTab();
   sync.syncDirty().then(renderBackupStatus);
   renderHome();
   if (!$('records').hidden) renderRecords();

@@ -1,5 +1,5 @@
 // 静时 · 定时静心的本机存储（数据很小，放 localStorage）。开了备份时整份同步到 GitHub 的 data/plans.json。
-import { mergePlans } from './logic.js?v=0.8.0';
+import { mergePlans } from './logic.js?v=0.8.1';
 
 const KEY = 'jingshi.plans', DIRTY = 'jingshi.plansDirty';
 

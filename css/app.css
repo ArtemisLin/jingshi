@@ -300,7 +300,10 @@ a.tab { color: var(--ink); text-decoration: none; }
 /* 记录页：第一行左右两个按钮，第二行大标题（iOS 大标题式，窄屏也不挤） */
 .bar3 { display: flex; justify-content: space-between; align-items: center; height: 44px; }
 .tab.back { padding: 0 15px 0 12px; letter-spacing: 0.1em; gap: 7px; }
-.tab.backup { padding: 0 16px; letter-spacing: 0.2em; }
+/* 只有字的胶囊：字距会在最后一个字后面多留一截，左边补回去，字才居中 */
+.tab.txt { padding: 0 14px 0 calc(14px + 0.2em); justify-content: center; letter-spacing: 0.2em; }
+/* 有开着的定时：「定时」换成淡金底、写上个数 */
+.tab.txt.on { background: #F1E4C8; border-color: #E2CDA0; color: var(--gold-text); }
 .page-title { margin: 22px 0 0; font-size: 24px; font-weight: 400; letter-spacing: 0.2em; line-height: 1.3; }
 
 .stats {
